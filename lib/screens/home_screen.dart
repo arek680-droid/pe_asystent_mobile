@@ -391,29 +391,54 @@ class TasksDashboard extends ConsumerWidget {
             final activeTasks = tasks.where((t) => t.status != 'completed').toList();
             final completedTasks = tasks.where((t) => t.status == 'completed').toList();
 
+            Future<void> handleStatusChanged(ProjectTask task, String newStatus) async {
+              final oldStatus = task.status;
+              if (oldStatus == newStatus) return;
+
+              final leveledUp = await ref.read(tasksProvider.notifier).updateTaskStatus(task, newStatus);
+
+              if (context.mounted) {
+                String statusLabel = '';
+                switch (newStatus) {
+                  case 'todo': statusLabel = 'Do zrobienia'; break;
+                  case 'in_progress': statusLabel = 'W trakcie'; break;
+                  case 'on_hold': statusLabel = 'Wstrzymano'; break;
+                  case 'to_accept': statusLabel = 'Do akceptacji'; break;
+                  case 'completed': statusLabel = 'Zakończone'; break;
+                }
+
+                if (newStatus == 'completed') {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Zadanie ukończone! +${task.priority == 'critical' ? 120 : task.priority == 'high' ? 75 : task.priority == 'medium' ? 40 : 20} EXP'),
+                      behavior: SnackBarBehavior.floating,
+                      backgroundColor: Colors.green.shade800,
+                    ),
+                  );
+                  if (leveledUp) {
+                    _celebrateLevelUp(context, ref.read(userStatsProvider).level);
+                  }
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Zmieniono status na: $statusLabel'),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              }
+            }
+
             return TabBarView(
               children: [
                 TaskList(
                   tasks: activeTasks,
-                  onComplete: (task) async {
-                    final leveledUp = await ref.read(tasksProvider.notifier).completeTask(task);
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Zadanie ukończone! +${task.priority == 'critical' ? 120 : task.priority == 'high' ? 75 : task.priority == 'medium' ? 40 : 20} EXP'),
-                          behavior: SnackBarBehavior.floating,
-                          backgroundColor: Colors.green.shade800,
-                        ),
-                      );
-                      if (leveledUp) {
-                        _celebrateLevelUp(context, ref.read(userStatsProvider).level);
-                      }
-                    }
-                  },
+                  onStatusChanged: handleStatusChanged,
                   isEmptyMessage: 'Brak aktywnych zadań. Odpocznij!',
                 ),
                 TaskList(
                   tasks: completedTasks,
+                  onStatusChanged: handleStatusChanged,
                   isEmptyMessage: 'Jeszcze nic nie ukończyłeś. Do dzieła!',
                 ),
               ],
@@ -454,13 +479,13 @@ class TasksDashboard extends ConsumerWidget {
 
 class TaskList extends StatelessWidget {
   final List<ProjectTask> tasks;
-  final Function(ProjectTask)? onComplete;
+  final Function(ProjectTask, String) onStatusChanged;
   final String isEmptyMessage;
 
   const TaskList({
     super.key,
     required this.tasks,
-    this.onComplete,
+    required this.onStatusChanged,
     required this.isEmptyMessage,
   });
 
@@ -475,6 +500,105 @@ class TaskList extends StatelessWidget {
       default:
         return Colors.grey.shade600;
     }
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case 'todo': return Colors.grey;
+      case 'in_progress': return Colors.blue;
+      case 'on_hold': return Colors.orange;
+      case 'to_accept': return Colors.purple;
+      case 'completed': return Colors.green;
+      default: return Colors.grey;
+    }
+  }
+
+  IconData _getStatusIcon(String status) {
+    switch (status) {
+      case 'todo': return Icons.radio_button_unchecked;
+      case 'in_progress': return Icons.pending_actions_rounded;
+      case 'on_hold': return Icons.pause_circle_filled_rounded;
+      case 'to_accept': return Icons.fact_check_rounded;
+      case 'completed': return Icons.check_circle_rounded;
+      default: return Icons.radio_button_unchecked;
+    }
+  }
+
+  String _getStatusLabel(String status) {
+    switch (status) {
+      case 'todo': return 'Do zrobienia';
+      case 'in_progress': return 'W trakcie';
+      case 'on_hold': return 'Wstrzymano';
+      case 'to_accept': return 'Do akceptacji';
+      case 'completed': return 'Zakończone';
+      default: return '';
+    }
+  }
+
+  void _showStatusBottomSheet(BuildContext context, ProjectTask task) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        final theme = Theme.of(context);
+        final statuses = [
+          {'value': 'todo', 'label': 'Do zrobienia'},
+          {'value': 'in_progress', 'label': 'W trakcie'},
+          {'value': 'on_hold', 'label': 'Wstrzymano'},
+          {'value': 'to_accept', 'label': 'Do akceptacji'},
+          {'value': 'completed', 'label': 'Zakończone'},
+        ];
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 24.0, horizontal: 20.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Zmień status zadania',
+                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              ...statuses.map((status) {
+                final isSelected = task.status == status['value'];
+                final value = status['value'] as String;
+                final label = status['label'] as String;
+                final color = _getStatusColor(value);
+                final icon = _getStatusIcon(value);
+
+                return ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(icon, color: color, size: 20),
+                  ),
+                  title: Text(
+                    label,
+                    style: TextStyle(
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      color: isSelected ? theme.colorScheme.primary : theme.colorScheme.secondary,
+                    ),
+                  ),
+                  trailing: isSelected ? Icon(Icons.check, color: theme.colorScheme.primary) : null,
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    onStatusChanged(task, value);
+                  },
+                );
+              }),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -494,6 +618,8 @@ class TaskList extends StatelessWidget {
       itemBuilder: (context, index) {
         final task = tasks[index];
         final priorityColor = _getPriorityColor(task.priority);
+        final statusColor = _getStatusColor(task.status);
+        final statusIcon = _getStatusIcon(task.status);
 
         return Padding(
           padding: const EdgeInsets.only(bottom: 12.0),
@@ -501,28 +627,33 @@ class TaskList extends StatelessWidget {
             child: InkWell(
               borderRadius: BorderRadius.circular(16),
               onTap: () {
-                // Task details sheet if wanted later
+                // Future task details sheet if needed
               },
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (onComplete != null)
-                      Padding(
-                        padding: const EdgeInsets.only(right: 12.0, top: 2),
-                        child: SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: Checkbox(
-                            value: false,
-                            onChanged: (_) => onComplete!(task),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(6),
-                            ),
+                    // Status selector button
+                    Padding(
+                      padding: const EdgeInsets.only(right: 12.0),
+                      child: InkWell(
+                        onTap: () => _showStatusBottomSheet(context, task),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: statusColor.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(
+                            statusIcon,
+                            color: statusColor,
+                            size: 22,
                           ),
                         ),
                       ),
+                    ),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -546,6 +677,23 @@ class TaskList extends StatelessWidget {
                                   color: priorityColor,
                                 ),
                               ),
+                              const Spacer(),
+                              // Status Badge
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: statusColor.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  _getStatusLabel(task.status).toUpperCase(),
+                                  style: GoogleFonts.inter(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold,
+                                    color: statusColor,
+                                  ),
+                                ),
+                              ),
                             ],
                           ),
                           const SizedBox(height: 6),
@@ -553,10 +701,10 @@ class TaskList extends StatelessWidget {
                             task.title,
                             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                                   fontWeight: FontWeight.w600,
-                                  decoration: onComplete == null 
+                                  decoration: task.status == 'completed'
                                       ? TextDecoration.lineThrough 
                                       : null,
-                                  color: onComplete == null 
+                                  color: task.status == 'completed'
                                       ? Theme.of(context).colorScheme.secondary.withValues(alpha: 0.5)
                                       : null,
                                 ),

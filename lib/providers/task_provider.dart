@@ -51,16 +51,16 @@ class TasksNotifier extends StateNotifier<AsyncValue<List<ProjectTask>>> {
     }
   }
 
-  Future<bool> completeTask(ProjectTask task) async {
+  Future<bool> updateTaskStatus(ProjectTask task, String newStatus) async {
     try {
-      final completedAt = DateTime.now();
+      final completedAt = newStatus == 'completed' ? DateTime.now() : null;
       
       // Update status in Supabase
       await Supabase.instance.client
           .from('project_tasks')
           .update({
-            'status': 'completed',
-            'completed_at': completedAt.toIso8601String(),
+            'status': newStatus,
+            'completed_at': completedAt?.toIso8601String(),
           })
           .eq('id', task.id);
 
@@ -68,33 +68,35 @@ class TasksNotifier extends StateNotifier<AsyncValue<List<ProjectTask>>> {
       state.whenData((tasks) {
         state = AsyncValue.data(
           tasks.map((t) => t.id == task.id 
-              ? t.copyWith(status: 'completed', completedAt: completedAt) 
+              ? t.copyWith(status: newStatus, completedAt: completedAt) 
               : t).toList(),
         );
       });
 
-      // Gamification: award EXP based on priority
-      int expReward = 20; // Default
-      switch (task.priority) {
-        case 'low':
-          expReward = 20;
-          break;
-        case 'medium':
-          expReward = 40;
-          break;
-        case 'high':
-          expReward = 75;
-          break;
-        case 'critical':
-          expReward = 120;
-          break;
-      }
+      // Gamification: award EXP only when moving to 'completed'
+      if (newStatus == 'completed' && task.status != 'completed') {
+        int expReward = 20; // Default
+        switch (task.priority) {
+          case 'low':
+            expReward = 20;
+            break;
+          case 'medium':
+            expReward = 40;
+            break;
+          case 'high':
+            expReward = 75;
+            break;
+          case 'critical':
+            expReward = 120;
+            break;
+        }
 
-      // Add EXP and return if the user leveled up
-      final leveledUp = await _ref.read(userStatsProvider.notifier).addExp(expReward);
-      return leveledUp;
+        // Add EXP and return if the user leveled up
+        final leveledUp = await _ref.read(userStatsProvider.notifier).addExp(expReward);
+        return leveledUp;
+      }
+      return false;
     } catch (e) {
-      // Re-throw or handle error
       rethrow;
     }
   }
