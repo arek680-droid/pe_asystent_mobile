@@ -44,7 +44,7 @@ jobs:
 
       # 6. Zbudowanie pliku APK (wersja debug, najszybsza do testów)
       - name: Build APK
-        run: flutter build apk --debug
+        run: flutter build apk --debug --build-number=${{ github.run_number }}
 
       # 7. Udostępnienie pliku APK do pobrania jako "Artifact" na GitHubie (jako kopia zapasowa)
       - name: Upload APK Artifact
@@ -58,10 +58,10 @@ jobs:
       - name: Create or Update Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: latest
-          name: Najnowsza Wersja Testowa (APK)
+          tag_name: v${{ github.run_number }}
+          name: Wersja v${{ github.run_number }}
           body: |
-            Automatycznie skompilowana najnowsza wersja aplikacji PE Asystent Mobile.
+            Automatycznie skompilowana wersja v${{ github.run_number }} aplikacji PE Asystent Mobile.
             
             Pobierz plik `app-debug.apk` poniżej bezpośrednio na swój telefon, aby go zainstalować/zaktualizować.
           files: build/app/outputs/flutter-apk/app-debug.apk

@@ -1,6 +1,7 @@
+import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 
 class UpdateState {
@@ -51,38 +52,45 @@ class UpdateNotifier extends StateNotifier<UpdateState> {
   Future<void> checkForUpdates() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      // 1. Get current app version from the device
+      // 1. Pobierz obecny numer budowania (buildNumber) z urządzenia
       final packageInfo = await PackageInfo.fromPlatform();
-      final currentVersion = packageInfo.version; // e.g. "1.0.0"
+      final currentBuild = int.tryParse(packageInfo.buildNumber) ?? 0;
+      final currentVersionName = packageInfo.version;
 
-      // 2. Fetch latest version info from Supabase app_config table
-      final response = await Supabase.instance.client
-          .from('app_config')
-          .select('key, value');
+      // 2. Pobierz informacje o najnowszym wydaniu z API GitHuba
+      final url = Uri.parse('https://api.github.com/repos/arek680-droid/pe_asystent_mobile/releases/latest');
+      final response = await http.get(url);
 
-      final List<dynamic> data = response as List<dynamic>;
-      String latestVersion = '1.0.0';
-      String apkUrl = '';
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        final tagName = data['tag_name'] as String? ?? 'v0'; // np. "v5"
+        
+        // Wyciągamy numer z tagu (np. "v5" -> 5)
+        final latestBuild = int.tryParse(tagName.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
 
-      for (var item in data) {
-        final map = item as Map<String, dynamic>;
-        if (map['key'] == 'latest_version') {
-          latestVersion = map['value'].toString();
-        } else if (map['key'] == 'apk_url') {
-          apkUrl = map['value'].toString();
-        }
+        // Stały link do pobrania najnowszego APK
+        final apkUrl = 'https://github.com/arek680-droid/pe_asystent_mobile/releases/latest/download/app-debug.apk';
+
+        // 3. Porównaj numery budowania
+        final hasUpdate = latestBuild > currentBuild;
+
+        state = UpdateState(
+          isLoading: false,
+          hasUpdate: hasUpdate,
+          currentVersion: '$currentVersionName (Wersja $currentBuild)',
+          latestVersion: 'Wersja $latestBuild',
+          apkUrl: apkUrl,
+        );
+      } else {
+        // Czasami przy pierwszym uruchomieniu nie ma jeszcze żadnego release na GitHubie
+        state = UpdateState(
+          isLoading: false,
+          hasUpdate: false,
+          currentVersion: '$currentVersionName (Wersja $currentBuild)',
+          latestVersion: 'Brak wydań na GitHub',
+          apkUrl: '',
+        );
       }
-
-      // 3. Compare versions
-      final hasUpdate = _isNewerVersion(currentVersion, latestVersion);
-
-      state = UpdateState(
-        isLoading: false,
-        hasUpdate: hasUpdate,
-        currentVersion: currentVersion,
-        latestVersion: latestVersion,
-        apkUrl: apkUrl,
-      );
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
@@ -91,34 +99,16 @@ class UpdateNotifier extends StateNotifier<UpdateState> {
     }
   }
 
-  // Simple semver comparison helper
-  bool _isNewerVersion(String current, String latest) {
-    try {
-      List<int> currentParts = current.split('.').map((e) => int.tryParse(e) ?? 0).toList();
-      List<int> latestParts = latest.split('.').map((e) => int.tryParse(e) ?? 0).toList();
-      
-      for (int i = 0; i < latestParts.length; i++) {
-        int currentPart = i < currentParts.length ? currentParts[i] : 0;
-        if (latestParts[i] > currentPart) return true;
-        if (latestParts[i] < currentPart) return false;
-      }
-    } catch (_) {
-      // Fallback to simple string comparison if parsing fails
-      return current != latest;
-    }
-    return false;
-  }
-
   Future<void> launchUpdateUrl() async {
     if (state.apkUrl.isEmpty) return;
     final url = Uri.parse(state.apkUrl);
     if (await canLaunchUrl(url)) {
       await launchUrl(
         url,
-        mode: LaunchMode.externalApplication, // Opens in external browser
+        mode: LaunchMode.externalApplication, // Otwiera w zewnętrznej przeglądarce
       );
     } else {
-      throw 'Could not launch $url';
+      throw 'Nie można otworzyć linku: $url';
     }
   }
 }
