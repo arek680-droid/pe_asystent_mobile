@@ -6,6 +6,7 @@ import '../providers/auth_provider.dart';
 import '../providers/project_provider.dart';
 import '../providers/task_provider.dart';
 import '../providers/user_stats_provider.dart';
+import '../providers/update_provider.dart';
 import 'profile_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -82,6 +83,63 @@ class TasksDashboard extends ConsumerWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) => const AddTaskBottomSheet(),
+    );
+  }
+
+  void _showUpdateDialog(BuildContext context, WidgetRef ref, String currentVersion, String latestVersion) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(Icons.system_update_rounded, color: Theme.of(context).colorScheme.primary),
+            const SizedBox(width: 8),
+            const Text('Aktualizacja'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Dostępna jest nowa wersja aplikacji PE Asystent!'),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                const Text('Obecna wersja: '),
+                Text(currentVersion, style: const TextStyle(fontWeight: FontWeight.bold)),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                const Text('Nowa wersja: '),
+                Text(
+                  latestVersion,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Później'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              ref.read(updateProvider.notifier).launchUpdateUrl();
+              Navigator.of(context).pop();
+            },
+            child: const Text('Aktualizuj'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -171,6 +229,13 @@ class TasksDashboard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Listen for updates and show a dialog if one is available
+    ref.listen<UpdateState>(updateProvider, (previous, next) {
+      if (next.hasUpdate && !next.isLoading && next.error == null) {
+        _showUpdateDialog(context, ref, next.currentVersion, next.latestVersion);
+      }
+    });
+
     final tasksState = ref.watch(tasksProvider);
     final userStats = ref.watch(userStatsProvider);
     final theme = Theme.of(context);

@@ -7,6 +7,9 @@ on:
       - master
   workflow_dispatch: # Pozwala na ręczne uruchomienie budowania w panelu GitHub
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -43,10 +46,26 @@ jobs:
       - name: Build APK
         run: flutter build apk --debug
 
-      # 6. Udostępnienie pliku APK do pobrania jako "Artifact" na GitHubie
+      # 7. Udostępnienie pliku APK do pobrania jako "Artifact" na GitHubie (jako kopia zapasowa)
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: pe-asystent-mobile-apk
           path: build/app/outputs/flutter-apk/app-debug.apk
-          retention-days: 7 # Plik będzie dostępny do pobrania przez 7 dni
+          retention-days: 7
+
+      # 8. Automatyczne utworzenie/aktualizacja wydania (Release) na GitHubie z plikiem APK
+      - name: Create or Update Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Najnowsza Wersja Testowa (APK)
+          body: |
+            Automatycznie skompilowana najnowsza wersja aplikacji PE Asystent Mobile.
+            
+            Pobierz plik `app-debug.apk` poniżej bezpośrednio na swój telefon, aby go zainstalować/zaktualizować.
+          files: build/app/outputs/flutter-apk/app-debug.apk
+          prerelease: false
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
