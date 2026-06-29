@@ -1,17 +1,181 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_3d_controller/flutter_3d_controller.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
 import '../providers/user_stats_provider.dart';
+import '../providers/avatar_provider.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
+
+  void _showAvatarSelectorSheet(BuildContext context, WidgetRef ref) {
+    final currentLevel = ref.read(userStatsProvider).level;
+    final selectedAvatar = ref.read(avatarProvider);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (context) {
+        final theme = Theme.of(context);
+        final allAvatars = AvatarNotifier.allAvatars;
+
+        return DraggableScrollableSheet(
+          initialChildSize: 0.75,
+          maxChildSize: 0.9,
+          minChildSize: 0.5,
+          expand: false,
+          builder: (context, scrollController) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0),
+              child: Column(
+                children: [
+                  const SizedBox(height: 12),
+                  // Drag handle
+                  Container(
+                    width: 40,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.secondary.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'Wybierz swojego chowańca',
+                    style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Odblokowuj nowe zwierzątka awansując na kolejne poziomy!',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.secondary.withValues(alpha: 0.7),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 20),
+                  Expanded(
+                    child: GridView.builder(
+                      controller: scrollController,
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                        childAspectRatio: 0.85,
+                      ),
+                      itemCount: allAvatars.length,
+                      itemBuilder: (context, index) {
+                        final avatar = allAvatars[index];
+                        final isUnlocked = currentLevel >= avatar.requiredLevel;
+                        final isCurrentlySelected = selectedAvatar == 'animal-${avatar.id}';
+
+                        return InkWell(
+                          onTap: isUnlocked
+                              ? () {
+                                  ref.read(avatarProvider.notifier).selectAvatar('animal-${avatar.id}');
+                                  Navigator.of(context).pop();
+                                }
+                              : null,
+                          borderRadius: BorderRadius.circular(20),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: isCurrentlySelected
+                                  ? theme.colorScheme.primary.withValues(alpha: 0.08)
+                                  : theme.cardColor,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: isCurrentlySelected
+                                    ? theme.colorScheme.primary
+                                    : isUnlocked
+                                        ? theme.colorScheme.secondary.withValues(alpha: 0.1)
+                                        : theme.colorScheme.secondary.withValues(alpha: 0.05),
+                                width: isCurrentlySelected ? 2 : 1,
+                              ),
+                            ),
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Opacity(
+                                      opacity: isUnlocked ? 1.0 : 0.25,
+                                      child: Image.asset(
+                                        avatar.pngPath,
+                                        height: 60,
+                                        width: 60,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      avatar.name,
+                                      style: theme.textTheme.bodyMedium?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                        color: isUnlocked
+                                            ? theme.colorScheme.secondary
+                                            : theme.colorScheme.secondary.withValues(alpha: 0.4),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                if (!isUnlocked)
+                                  Positioned(
+                                    top: 8,
+                                    right: 8,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: BoxDecoration(
+                                        color: theme.colorScheme.error.withValues(alpha: 0.1),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: Icon(
+                                        Icons.lock_rounded,
+                                        size: 12,
+                                        color: theme.colorScheme.error,
+                                      ),
+                                    ),
+                                  ),
+                                if (!isUnlocked)
+                                  Positioned(
+                                    bottom: 8,
+                                    child: Text(
+                                      'LVL ${avatar.requiredLevel}',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.bold,
+                                        color: theme.colorScheme.error,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authProvider);
     final userStats = ref.watch(userStatsProvider);
+    ref.watch(avatarProvider);
+    final avatarNotifier = ref.read(avatarProvider.notifier);
+    final activeAvatar = avatarNotifier.currentAvatarInfo;
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
@@ -36,23 +200,56 @@ class ProfileScreen extends ConsumerWidget {
                 padding: const EdgeInsets.all(24.0),
                 child: Column(
                   children: [
-                    CircleAvatar(
-                      radius: 40,
-                      backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
-                      child: Text(
-                        name[0].toUpperCase(),
-                        style: GoogleFonts.outfit(
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                          color: theme.colorScheme.primary,
+                    // 3D Model Viewer Container
+                    Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Container(
+                          height: 220,
+                          width: 220,
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primary.withValues(alpha: 0.03),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                              width: 2,
+                            ),
+                          ),
+                          child: ClipOval(
+                            child: Flutter3DViewer(
+                              key: ValueKey(activeAvatar.glbPath), // Forces rebuild on change
+                              src: activeAvatar.glbPath,
+                            ),
+                          ),
                         ),
+                        // Edit button positioned at the bottom right of the 3D circle
+                        Positioned(
+                          bottom: 0,
+                          right: 10,
+                          child: FloatingActionButton.small(
+                            onPressed: () => _showAvatarSelectorSheet(context, ref),
+                            backgroundColor: theme.colorScheme.primary,
+                            foregroundColor: theme.scaffoldBackgroundColor,
+                            shape: const CircleBorder(),
+                            child: const Icon(Icons.edit_rounded, size: 18),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Twój chowaniec: ${activeAvatar.name}',
+                      style: GoogleFonts.outfit(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: theme.colorScheme.primary,
                       ),
                     ),
                     const SizedBox(height: 16),
                     Text(
                       name,
                       style: theme.textTheme.titleMedium?.copyWith(
-                        fontSize: 20,
+                        fontSize: 22,
                         fontWeight: FontWeight.bold,
                       ),
                     ),

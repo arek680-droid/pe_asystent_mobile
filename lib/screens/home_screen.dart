@@ -7,6 +7,7 @@ import '../providers/project_provider.dart';
 import '../providers/task_provider.dart';
 import '../providers/user_stats_provider.dart';
 import '../providers/update_provider.dart';
+import '../providers/avatar_provider.dart';
 import 'profile_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -238,6 +239,7 @@ class TasksDashboard extends ConsumerWidget {
 
     final tasksState = ref.watch(tasksProvider);
     final userStats = ref.watch(userStatsProvider);
+    final activeAvatarId = ref.watch(avatarProvider);
     final theme = Theme.of(context);
 
     // Calculate EXP percentage
@@ -261,6 +263,22 @@ class TasksDashboard extends ConsumerWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
+                      // Circular 2D Pet Avatar
+                      Container(
+                        margin: const EdgeInsets.only(right: 12),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: theme.colorScheme.primary.withValues(alpha: 0.2),
+                            width: 1.5,
+                          ),
+                        ),
+                        child: CircleAvatar(
+                          radius: 22,
+                          backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.05),
+                          backgroundImage: AssetImage('assets/avatars/png/$activeAvatarId.png'),
+                        ),
+                      ),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
