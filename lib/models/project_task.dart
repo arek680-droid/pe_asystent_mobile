@@ -1,6 +1,6 @@
 class ProjectTask {
   final String id;
-  final String projectId;
+  final String? projectId;
   final String? milestoneId;
   final String title;
   final String description;
@@ -15,7 +15,7 @@ class ProjectTask {
 
   ProjectTask({
     required this.id,
-    required this.projectId,
+    this.projectId,
     this.milestoneId,
     required this.title,
     required this.description,
@@ -31,17 +31,17 @@ class ProjectTask {
 
   factory ProjectTask.fromJson(Map<String, dynamic> json) {
     return ProjectTask(
-      id: json['id'] as String,
-      projectId: json['project_id'] as String,
-      milestoneId: json['milestone_id'] as String?,
-      title: json['title'] as String? ?? '',
-      description: json['description'] as String? ?? '',
-      status: json['status'] as String? ?? 'todo',
-      priority: json['priority'] as String? ?? 'medium',
-      assignedTo: json['assigned_to'] as String?,
-      startDate: json['start_date'] != null ? DateTime.tryParse(json['start_date'] as String) : null,
-      dueDate: json['due_date'] != null ? DateTime.tryParse(json['due_date'] as String) : null,
-      completedAt: json['completed_at'] != null ? DateTime.tryParse(json['completed_at'] as String) : null,
+      id: json['id']?.toString() ?? '',
+      projectId: json['project_id']?.toString(),
+      milestoneId: json['milestone_id']?.toString(),
+      title: json['title']?.toString() ?? '',
+      description: json['description']?.toString() ?? '',
+      status: json['status']?.toString() ?? 'todo',
+      priority: json['priority']?.toString() ?? 'medium',
+      assignedTo: json['assigned_to']?.toString(),
+      startDate: json['start_date'] != null ? DateTime.tryParse(json['start_date'].toString()) : null,
+      dueDate: json['due_date'] != null ? DateTime.tryParse(json['due_date'].toString()) : null,
+      completedAt: json['completed_at'] != null ? DateTime.tryParse(json['completed_at'].toString()) : null,
       estimatedHours: (json['estimated_hours'] as num?)?.toDouble() ?? 0.0,
       actualHours: (json['actual_hours'] as num?)?.toDouble() ?? 0.0,
     );

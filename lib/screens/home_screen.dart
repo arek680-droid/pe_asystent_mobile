@@ -186,7 +186,7 @@ class TasksDashboard extends ConsumerWidget {
         appBar: AppBar(
           toolbarHeight: 0, // Hide standard toolbar, we build our own gamified header
           bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(160),
+            preferredSize: const Size.fromHeight(200),
             child: Container(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
               child: Column(
