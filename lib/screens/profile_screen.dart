@@ -6,6 +6,7 @@ import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
 import '../providers/user_stats_provider.dart';
 import '../providers/avatar_provider.dart';
+import '../providers/profile_provider.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -173,6 +174,7 @@ class ProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authProvider);
     final userStats = ref.watch(userStatsProvider);
+    final profileState = ref.watch(profileProvider);
     ref.watch(avatarProvider);
     final avatarNotifier = ref.read(avatarProvider.notifier);
     final activeAvatar = avatarNotifier.currentAvatarInfo;
@@ -180,7 +182,7 @@ class ProfileScreen extends ConsumerWidget {
     final isDark = theme.brightness == Brightness.dark;
 
     final email = user?.email ?? 'uzytkownik@example.com';
-    final name = email.split('@')[0];
+    final name = profileState.value ?? email.split('@')[0];
 
     return Scaffold(
       appBar: AppBar(

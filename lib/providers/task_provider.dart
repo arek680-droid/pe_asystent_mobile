@@ -42,8 +42,19 @@ class TasksNotifier extends StateNotifier<AsyncValue<List<ProjectTask>>> {
           .select()
           .order('created_at', ascending: false);
 
+      // Fetch attachments to check which tasks have images
+      final attachmentsResponse = await Supabase.instance.client
+          .from('project_task_attachments')
+          .select('task_id');
+      final List<dynamic> attachmentsData = attachmentsResponse as List<dynamic>;
+      final tasksWithAttachments = attachmentsData.map((row) => row['task_id'].toString()).toSet();
+
       final List<dynamic> data = response as List<dynamic>;
-      final tasks = data.map((json) => ProjectTask.fromJson(json as Map<String, dynamic>)).toList();
+      final tasks = data.map((json) {
+        final task = ProjectTask.fromJson(json as Map<String, dynamic>);
+        final hasImage = tasksWithAttachments.contains(task.id);
+        return task.copyWith(hasImage: hasImage);
+      }).toList();
       
       state = AsyncValue.data(tasks);
     } catch (e, stackTrace) {
@@ -96,6 +107,30 @@ class TasksNotifier extends StateNotifier<AsyncValue<List<ProjectTask>>> {
         return leveledUp;
       }
       return false;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> assignTaskToSelf(ProjectTask task) async {
+    try {
+      final user = _ref.read(authProvider);
+      if (user == null) return;
+
+      // Update in Supabase
+      await Supabase.instance.client
+          .from('project_tasks')
+          .update({'assigned_to': user.id})
+          .eq('id', task.id);
+
+      // Update local state
+      state.whenData((tasks) {
+        state = AsyncValue.data(
+          tasks.map((t) => t.id == task.id 
+              ? t.copyWith(assignedTo: user.id) 
+              : t).toList(),
+        );
+      });
     } catch (e) {
       rethrow;
     }

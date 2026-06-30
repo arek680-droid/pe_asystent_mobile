@@ -2,13 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/project_task.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../providers/auth_provider.dart';
 import '../providers/project_provider.dart';
 import '../providers/task_provider.dart';
 import '../providers/user_stats_provider.dart';
 import '../providers/update_provider.dart';
 import '../providers/avatar_provider.dart';
+import '../providers/profile_provider.dart';
+import 'dashboard_screen.dart';
 import 'profile_screen.dart';
+import 'task_detail_sheet.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -23,6 +27,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final List<Widget> screens = [
+      DashboardScreen(
+        onNavigateToTasks: () => setState(() => _currentIndex = 1),
+        onNavigateToProfile: () => setState(() => _currentIndex = 2),
+      ),
       const TasksDashboard(),
       const ProfileScreen(),
     ];
@@ -55,6 +63,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           selectedLabelStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 12),
           unselectedLabelStyle: GoogleFonts.inter(fontWeight: FontWeight.w500, fontSize: 12),
           items: const [
+            BottomNavigationBarItem(
+              icon: Icon(Icons.dashboard_outlined),
+              activeIcon: Icon(Icons.dashboard),
+              label: 'Pulpit',
+            ),
             BottomNavigationBarItem(
               icon: Icon(Icons.check_circle_outline),
               activeIcon: Icon(Icons.check_circle),
@@ -240,6 +253,7 @@ class TasksDashboard extends ConsumerWidget {
     final tasksState = ref.watch(tasksProvider);
     final userStats = ref.watch(userStatsProvider);
     final activeAvatarId = ref.watch(avatarProvider);
+    final profileState = ref.watch(profileProvider);
     final theme = Theme.of(context);
 
     // Calculate EXP percentage
@@ -248,12 +262,12 @@ class TasksDashboard extends ConsumerWidget {
         : 0.0;
 
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Scaffold(
         appBar: AppBar(
           toolbarHeight: 0, // Hide standard toolbar, we build our own gamified header
           bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(200),
+            preferredSize: const Size.fromHeight(220),
             child: Container(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
               child: Column(
@@ -291,7 +305,7 @@ class TasksDashboard extends ConsumerWidget {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              ref.read(authProvider)?.email?.split('@')[0] ?? 'Użytkownik',
+                              profileState.value ?? ref.read(authProvider)?.email?.split('@')[0] ?? 'Użytkownik',
                               style: theme.textTheme.titleLarge,
                               overflow: TextOverflow.ellipsis,
                               maxLines: 1,
@@ -395,7 +409,8 @@ class TasksDashboard extends ConsumerWidget {
                     labelStyle: GoogleFonts.inter(fontWeight: FontWeight.bold),
                     unselectedLabelStyle: GoogleFonts.inter(fontWeight: FontWeight.normal),
                     tabs: const [
-                      Tab(text: 'Do zrobienia'),
+                      Tab(text: 'Moje zadania'),
+                      Tab(text: 'Nieprzypisane'),
                       Tab(text: 'Zakończone'),
                     ],
                   ),
@@ -406,12 +421,88 @@ class TasksDashboard extends ConsumerWidget {
         ),
         body: tasksState.when(
           data: (tasks) {
-            final activeTasks = tasks.where((t) => t.status != 'completed').toList();
+            final currentUser = ref.watch(authProvider);
+            final currentUserId = currentUser?.id;
+
+            final myTasks = tasks.where((t) => t.status != 'completed' && t.assignedTo == currentUserId).toList();
+            final unassignedTasks = tasks.where((t) => t.status != 'completed' && (t.assignedTo == null || t.assignedTo!.isEmpty)).toList();
             final completedTasks = tasks.where((t) => t.status == 'completed').toList();
 
             Future<void> handleStatusChanged(ProjectTask task, String newStatus) async {
               final oldStatus = task.status;
               if (oldStatus == newStatus) return;
+
+              if (newStatus == 'on_hold') {
+                final reason = await showDialog<String>(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (context) {
+                    final controller = TextEditingController();
+                    final formKey = GlobalKey<FormState>();
+                    final dialogTheme = Theme.of(context);
+                    return AlertDialog(
+                      title: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Powód wstrzymania'),
+                          IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: () => Navigator.of(context).pop(),
+                          ),
+                        ],
+                      ),
+                      content: Form(
+                        key: formKey,
+                        child: TextFormField(
+                          controller: controller,
+                          decoration: const InputDecoration(
+                            labelText: 'Wpisz powód wstrzymania...',
+                            border: OutlineInputBorder(),
+                          ),
+                          maxLines: 3,
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'Wpisanie powodu jest wymagane';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: Text('Anuluj', style: TextStyle(color: dialogTheme.colorScheme.secondary)),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            if (formKey.currentState?.validate() ?? false) {
+                              Navigator.of(context).pop(controller.text.trim());
+                            }
+                          },
+                          child: Text('Zatwierdź', style: TextStyle(color: dialogTheme.colorScheme.primary, fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    );
+                  },
+                );
+
+                if (reason == null || reason.trim().isEmpty) {
+                  return;
+                }
+
+                // Add comment to the database
+                if (currentUser != null) {
+                  try {
+                    await Supabase.instance.client.from('project_task_comments').insert({
+                      'task_id': task.id,
+                      'user_id': currentUser.id,
+                      'comment': '[WSTRZYMANO] $reason',
+                    });
+                  } catch (_) {
+                    // Fail silently
+                  }
+                }
+              }
 
               final leveledUp = await ref.read(tasksProvider.notifier).updateTaskStatus(task, newStatus);
 
@@ -447,12 +538,31 @@ class TasksDashboard extends ConsumerWidget {
               }
             }
 
+            Future<void> handleAssignToSelf(ProjectTask task) async {
+              await ref.read(tasksProvider.notifier).assignTaskToSelf(task);
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Zadanie zostało przypisane do Ciebie!'),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              }
+            }
+
             return TabBarView(
               children: [
                 TaskList(
-                  tasks: activeTasks,
+                  tasks: myTasks,
                   onStatusChanged: handleStatusChanged,
-                  isEmptyMessage: 'Brak aktywnych zadań. Odpocznij!',
+                  isEmptyMessage: 'Brak zadań przypisanych do Ciebie. Odpocznij!',
+                ),
+                TaskList(
+                  tasks: unassignedTasks,
+                  onStatusChanged: handleStatusChanged,
+                  isEmptyMessage: 'Brak nieprzypisanych zadań w systemie.',
+                  isUnassignedTab: true,
+                  onAssignToSelf: handleAssignToSelf,
                 ),
                 TaskList(
                   tasks: completedTasks,
@@ -499,12 +609,16 @@ class TaskList extends StatelessWidget {
   final List<ProjectTask> tasks;
   final Function(ProjectTask, String) onStatusChanged;
   final String isEmptyMessage;
+  final bool isUnassignedTab;
+  final Function(ProjectTask)? onAssignToSelf;
 
   const TaskList({
     super.key,
     required this.tasks,
     required this.onStatusChanged,
     required this.isEmptyMessage,
+    this.isUnassignedTab = false,
+    this.onAssignToSelf,
   });
 
   Color _getPriorityColor(String priority) {
@@ -551,6 +665,32 @@ class TaskList extends StatelessWidget {
       case 'completed': return 'Zakończone';
       default: return '';
     }
+  }
+
+  void _showAssignDialog(BuildContext context, ProjectTask task) {
+    final theme = Theme.of(context);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Przypisać zadanie?'),
+        content: const Text('Czy chcesz przypisać to zadanie do siebie?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text('Anuluj', style: TextStyle(color: theme.colorScheme.secondary)),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              if (onAssignToSelf != null) {
+                onAssignToSelf!(task);
+              }
+            },
+            child: Text('Przypisz', style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showStatusBottomSheet(BuildContext context, ProjectTask task) {
@@ -635,6 +775,7 @@ class TaskList extends StatelessWidget {
       itemCount: tasks.length,
       itemBuilder: (context, index) {
         final task = tasks[index];
+        final theme = Theme.of(context);
         final priorityColor = _getPriorityColor(task.priority);
         final statusColor = _getStatusColor(task.status);
         final statusIcon = _getStatusIcon(task.status);
@@ -645,31 +786,53 @@ class TaskList extends StatelessWidget {
             child: InkWell(
               borderRadius: BorderRadius.circular(16),
               onTap: () {
-                // Future task details sheet if needed
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (context) => TaskDetailSheet(task: task),
+                );
               },
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Status selector button
+                    // Status selector button or Assign to self button + Image indicator
                     Padding(
                       padding: const EdgeInsets.only(right: 12.0),
-                      child: InkWell(
-                        onTap: () => _showStatusBottomSheet(context, task),
-                        borderRadius: BorderRadius.circular(12),
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: statusColor.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(10),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          InkWell(
+                            onTap: isUnassignedTab 
+                                ? () => _showAssignDialog(context, task)
+                                : () => _showStatusBottomSheet(context, task),
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: isUnassignedTab 
+                                    ? theme.colorScheme.primary.withValues(alpha: 0.1)
+                                    : statusColor.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Icon(
+                                isUnassignedTab ? Icons.person_add_alt_1_rounded : statusIcon,
+                                color: isUnassignedTab ? theme.colorScheme.primary : statusColor,
+                                size: 22,
+                              ),
+                            ),
                           ),
-                          child: Icon(
-                            statusIcon,
-                            color: statusColor,
-                            size: 22,
-                          ),
-                        ),
+                          if (task.hasImage) ...[
+                            const SizedBox(height: 8),
+                            Icon(
+                              Icons.image_outlined,
+                              size: 16,
+                              color: theme.colorScheme.secondary.withValues(alpha: 0.4),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
                     Expanded(
@@ -860,12 +1023,16 @@ class _AddTaskBottomSheetState extends ConsumerState<AddTaskBottomSheet> {
                   );
                 }
                 return DropdownButtonFormField<String>(
+                  isExpanded: true,
                   initialValue: _selectedProjectId,
                   decoration: const InputDecoration(hintText: 'Wybierz projekt'),
                   items: projects.map((p) {
                     return DropdownMenuItem<String>(
                       value: p.id,
-                      child: Text(p.name),
+                      child: Text(
+                        p.name,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     );
                   }).toList(),
                   onChanged: (val) {
@@ -881,31 +1048,31 @@ class _AddTaskBottomSheetState extends ConsumerState<AddTaskBottomSheet> {
             const SizedBox(height: 16),
 
             // Priority Selector
-            Row(
-              children: [
-                Text('Priorytet:', style: theme.textTheme.bodyLarge),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: SegmentedButton<String>(
-                    segments: const [
-                      ButtonSegment(value: 'low', label: Text('Niski')),
-                      ButtonSegment(value: 'medium', label: Text('Śred')),
-                      ButtonSegment(value: 'high', label: Text('Wys')),
-                      ButtonSegment(value: 'critical', label: Text('Kryt')),
-                    ],
-                    selected: {_selectedPriority},
-                    onSelectionChanged: (set) {
-                      setState(() {
-                        _selectedPriority = set.first;
-                      });
-                    },
-                    style: SegmentedButton.styleFrom(
-                      padding: EdgeInsets.zero,
-                      textStyle: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500),
-                    ),
-                  ),
-                ),
+            Text(
+              'Priorytet',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: theme.colorScheme.secondary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            SegmentedButton<String>(
+              segments: const [
+                ButtonSegment(value: 'low', label: Text('Niski')),
+                ButtonSegment(value: 'medium', label: Text('Śred')),
+                ButtonSegment(value: 'high', label: Text('Wys')),
+                ButtonSegment(value: 'critical', label: Text('Kryt')),
               ],
+              selected: {_selectedPriority},
+              onSelectionChanged: (set) {
+                setState(() {
+                  _selectedPriority = set.first;
+                });
+              },
+              style: SegmentedButton.styleFrom(
+                padding: EdgeInsets.zero,
+                textStyle: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500),
+              ),
             ),
             const SizedBox(height: 24),
             ElevatedButton(

@@ -7,6 +7,8 @@ class ProjectTask {
   final String status; // 'todo' | 'in_progress' | 'completed' | 'on_hold' | 'to_accept'
   final String priority; // 'low' | 'medium' | 'high' | 'critical'
   final String? assignedTo;
+  final List<String> tags;
+  final bool hasImage; // NEW
   final DateTime? startDate;
   final DateTime? dueDate;
   final DateTime? completedAt;
@@ -22,6 +24,8 @@ class ProjectTask {
     required this.status,
     required this.priority,
     this.assignedTo,
+    required this.tags,
+    this.hasImage = false, // NEW
     this.startDate,
     this.dueDate,
     this.completedAt,
@@ -39,6 +43,8 @@ class ProjectTask {
       status: json['status']?.toString() ?? 'todo',
       priority: json['priority']?.toString() ?? 'medium',
       assignedTo: json['assigned_to']?.toString(),
+      tags: (json['tags'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
+      hasImage: json['has_image'] as bool? ?? false, // NEW
       startDate: json['start_date'] != null ? DateTime.tryParse(json['start_date'].toString()) : null,
       dueDate: json['due_date'] != null ? DateTime.tryParse(json['due_date'].toString()) : null,
       completedAt: json['completed_at'] != null ? DateTime.tryParse(json['completed_at'].toString()) : null,
@@ -57,6 +63,8 @@ class ProjectTask {
       'status': status,
       'priority': priority,
       'assigned_to': assignedTo,
+      'tags': tags,
+      'has_image': hasImage, // NEW
       'start_date': startDate?.toIso8601String(),
       'due_date': dueDate?.toIso8601String(),
       'completed_at': completedAt?.toIso8601String(),
@@ -74,6 +82,8 @@ class ProjectTask {
     String? status,
     String? priority,
     String? assignedTo,
+    List<String>? tags,
+    bool? hasImage, // NEW
     DateTime? startDate,
     DateTime? dueDate,
     DateTime? completedAt,
@@ -89,6 +99,8 @@ class ProjectTask {
       status: status ?? this.status,
       priority: priority ?? this.priority,
       assignedTo: assignedTo ?? this.assignedTo,
+      tags: tags ?? this.tags,
+      hasImage: hasImage ?? this.hasImage, // NEW
       startDate: startDate ?? this.startDate,
       dueDate: dueDate ?? this.dueDate,
       completedAt: completedAt ?? this.completedAt,
