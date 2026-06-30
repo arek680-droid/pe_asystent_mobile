@@ -7,6 +7,7 @@ import '../providers/theme_provider.dart';
 import '../providers/user_stats_provider.dart';
 import '../providers/avatar_provider.dart';
 import '../providers/profile_provider.dart';
+import '../providers/settings_provider.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -104,24 +105,37 @@ class ProfileScreen extends ConsumerWidget {
                                 Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Opacity(
-                                      opacity: isUnlocked ? 1.0 : 0.25,
-                                      child: Image.asset(
-                                        avatar.pngPath,
-                                        height: 60,
-                                        width: 60,
+                                    Container(
+                                      height: 64,
+                                      width: 64,
+                                      decoration: BoxDecoration(
+                                        color: isUnlocked
+                                            ? theme.colorScheme.primary.withValues(alpha: 0.05)
+                                            : theme.colorScheme.secondary.withValues(alpha: 0.03),
+                                        shape: BoxShape.circle,
                                       ),
+                                      child: isUnlocked
+                                          ? Center(
+                                              child: Image.asset(
+                                                avatar.pngPath,
+                                                height: 44,
+                                                width: 44,
+                                              ),
+                                            )
+                                          : Icon(
+                                              Icons.lock_rounded,
+                                              color: theme.colorScheme.secondary.withValues(alpha: 0.4),
+                                              size: 24,
+                                            ),
                                     ),
-                                    const SizedBox(height: 6),
+                                    const SizedBox(height: 8),
                                     Text(
                                       avatar.name,
-                                      style: theme.textTheme.bodyMedium?.copyWith(
+                                      style: theme.textTheme.bodySmall?.copyWith(
                                         fontWeight: FontWeight.bold,
-                                        fontSize: 12,
-                                        color: isUnlocked
-                                            ? theme.colorScheme.secondary
-                                            : theme.colorScheme.secondary.withValues(alpha: 0.4),
+                                        fontSize: 11,
                                       ),
+                                      textAlign: TextAlign.center,
                                     ),
                                   ],
                                 ),
@@ -130,27 +144,18 @@ class ProfileScreen extends ConsumerWidget {
                                     top: 8,
                                     right: 8,
                                     child: Container(
-                                      padding: const EdgeInsets.all(4),
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                       decoration: BoxDecoration(
-                                        color: theme.colorScheme.error.withValues(alpha: 0.1),
-                                        shape: BoxShape.circle,
+                                        color: theme.colorScheme.secondary.withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(6),
                                       ),
-                                      child: Icon(
-                                        Icons.lock_rounded,
-                                        size: 12,
-                                        color: theme.colorScheme.error,
-                                      ),
-                                    ),
-                                  ),
-                                if (!isUnlocked)
-                                  Positioned(
-                                    bottom: 8,
-                                    child: Text(
-                                      'LVL ${avatar.requiredLevel}',
-                                      style: GoogleFonts.inter(
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.bold,
-                                        color: theme.colorScheme.error,
+                                      child: Text(
+                                        'Lvl ${avatar.requiredLevel}',
+                                        style: TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.bold,
+                                          color: theme.colorScheme.secondary,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -174,15 +179,17 @@ class ProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authProvider);
     final userStats = ref.watch(userStatsProvider);
+    final avatarNotifier = ref.watch(avatarProvider.notifier);
     final profileState = ref.watch(profileProvider);
-    ref.watch(avatarProvider);
-    final avatarNotifier = ref.read(avatarProvider.notifier);
     final activeAvatar = avatarNotifier.currentAvatarInfo;
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
     final email = user?.email ?? 'uzytkownik@example.com';
     final name = profileState.value ?? email.split('@')[0];
+
+    final isAdmin = ref.watch(isAdminProvider).value ?? false;
+    final showGamification = ref.watch(gamificationSettingsProvider).value ?? true;
 
     return Scaffold(
       appBar: AppBar(
@@ -269,65 +276,67 @@ class ProfileScreen extends ConsumerWidget {
             const SizedBox(height: 24),
 
             // Gamification stats card
-            Text(
-              'Statystyki',
-              style: GoogleFonts.outfit(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: theme.colorScheme.primary,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    Column(
-                      children: [
-                        const Text(
-                          'POZIOM',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          '${userStats.level}',
-                          style: GoogleFonts.outfit(
-                            fontSize: 36,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.amber,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Container(
-                      width: 1,
-                      height: 50,
-                      color: theme.dividerTheme.color ?? Colors.grey.shade200,
-                    ),
-                    Column(
-                      children: [
-                        const Text(
-                          'EXP DO AWANSU',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          '${userStats.nextLevelExp - userStats.exp}',
-                          style: GoogleFonts.outfit(
-                            fontSize: 36,
-                            fontWeight: FontWeight.bold,
-                            color: const Color(0xFF4F46E5),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+            if (showGamification) ...[
+              Text(
+                'Statystyki',
+                style: GoogleFonts.outfit(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.primary,
                 ),
               ),
-            ),
-            const SizedBox(height: 24),
+              const SizedBox(height: 12),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      Column(
+                        children: [
+                          const Text(
+                            'POZIOM',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            '${userStats.level}',
+                            style: GoogleFonts.outfit(
+                              fontSize: 36,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.amber,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Container(
+                        width: 1,
+                        height: 50,
+                        color: theme.dividerTheme.color ?? Colors.grey.shade200,
+                      ),
+                      Column(
+                        children: [
+                          const Text(
+                            'EXP DO AWANSU',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            '${userStats.nextLevelExp - userStats.exp}',
+                            style: GoogleFonts.outfit(
+                              fontSize: 36,
+                              fontWeight: FontWeight.bold,
+                              color: const Color(0xFF4F46E5),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
 
             // Settings Section
             Text(
@@ -367,7 +376,41 @@ class ProfileScreen extends ConsumerWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
+
+            // Admin Settings Section
+            if (isAdmin) ...[
+              Text(
+                'Panel administratora',
+                style: GoogleFonts.outfit(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.primary,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Card(
+                child: Column(
+                  children: [
+                    ListTile(
+                      leading: Icon(
+                        Icons.insights_rounded,
+                        color: theme.colorScheme.primary,
+                      ),
+                      title: const Text('Pokazuj paski EXP i grywalizację'),
+                      subtitle: const Text('Globalne włączenie poziomu/EXP dla wszystkich użytkowników'),
+                      trailing: Switch(
+                        value: showGamification,
+                        onChanged: (val) {
+                          ref.read(gamificationSettingsProvider.notifier).updateSetting(val);
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
 
             // Logout Button
             OutlinedButton.icon(

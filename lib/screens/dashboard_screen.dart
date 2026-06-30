@@ -6,6 +6,7 @@ import '../providers/auth_provider.dart';
 import '../providers/profile_provider.dart';
 import '../providers/task_provider.dart';
 import '../providers/user_stats_provider.dart';
+import '../providers/settings_provider.dart';
 import 'task_detail_sheet.dart';
 
 enum ActivityType {
@@ -129,6 +130,7 @@ class DashboardScreen extends ConsumerWidget {
     final userStats = ref.watch(userStatsProvider);
     final tasksAsync = ref.watch(tasksProvider);
     final activityAsync = ref.watch(recentActivityProvider);
+    final showGamification = ref.watch(gamificationSettingsProvider).value ?? true;
 
     return Scaffold(
       body: SafeArea(
@@ -175,32 +177,34 @@ class DashboardScreen extends ConsumerWidget {
                           ),
                         ),
                         // Mini Level Circle
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: LinearGradient(
-                              colors: [theme.colorScheme.primary, theme.colorScheme.tertiary],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: theme.colorScheme.primary.withValues(alpha: 0.3),
-                                blurRadius: 8,
-                                offset: const Offset(0, 4),
+                        if (showGamification) ...[
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: LinearGradient(
+                                colors: [theme.colorScheme.primary, theme.colorScheme.tertiary],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
                               ),
-                            ],
-                          ),
-                          child: Text(
-                            'Lvl ${userStats.level}',
-                            style: GoogleFonts.outfit(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: theme.colorScheme.primary.withValues(alpha: 0.3),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Text(
+                              'Lvl ${userStats.level}',
+                              style: GoogleFonts.outfit(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
                             ),
                           ),
-                        ),
+                        ],
                       ],
                     );
                   },
@@ -210,68 +214,70 @@ class DashboardScreen extends ConsumerWidget {
                 const SizedBox(height: 24),
 
                 // 2. Gamification / XP Card
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        theme.colorScheme.surfaceContainerHighest,
-                        theme.colorScheme.surfaceContainerLow,
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: theme.colorScheme.secondary.withValues(alpha: 0.05),
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Postęp Poziomu',
-                            style: GoogleFonts.outfit(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                              color: theme.colorScheme.onSurface,
-                            ),
-                          ),
-                          Text(
-                            '${userStats.exp} / ${userStats.nextLevelExp} EXP',
-                            style: GoogleFonts.inter(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
-                              color: theme.colorScheme.primary,
-                            ),
-                          ),
+                if (showGamification) ...[
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          theme.colorScheme.surfaceContainerHighest,
+                          theme.colorScheme.surfaceContainerLow,
                         ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       ),
-                      const SizedBox(height: 12),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child: LinearProgressIndicator(
-                          value: userStats.nextLevelExp > 0 ? userStats.exp / userStats.nextLevelExp : 0.0,
-                          minHeight: 8,
-                          backgroundColor: theme.colorScheme.secondary.withValues(alpha: 0.1),
-                          valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: theme.colorScheme.secondary.withValues(alpha: 0.05),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Postęp Poziomu',
+                              style: GoogleFonts.outfit(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: theme.colorScheme.onSurface,
+                              ),
+                            ),
+                            Text(
+                              '${userStats.exp} / ${userStats.nextLevelExp} EXP',
+                              style: GoogleFonts.inter(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                                color: theme.colorScheme.primary,
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Zdobądź jeszcze ${userStats.nextLevelExp - userStats.exp} EXP, aby awansować!',
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          color: theme.colorScheme.secondary.withValues(alpha: 0.5),
+                        const SizedBox(height: 12),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: LinearProgressIndicator(
+                            value: userStats.nextLevelExp > 0 ? userStats.exp / userStats.nextLevelExp : 0.0,
+                            minHeight: 8,
+                            backgroundColor: theme.colorScheme.secondary.withValues(alpha: 0.1),
+                            valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
+                          ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 8),
+                        Text(
+                          'Zdobądź jeszcze ${userStats.nextLevelExp - userStats.exp} EXP, aby awansować!',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            color: theme.colorScheme.secondary.withValues(alpha: 0.5),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 24),
+                  const SizedBox(height: 24),
+                ],
 
                 // 3. Task Overview Grid & Completion Circle
                 Text(
