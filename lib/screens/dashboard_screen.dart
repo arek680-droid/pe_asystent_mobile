@@ -301,66 +301,149 @@ class DashboardScreen extends ConsumerWidget {
                     final totalTasks = tasks.length;
                     final completionPercent = totalTasks > 0 ? (completedTasks / totalTasks * 100).round() : 0;
 
+                    final statsGrid = Column(
+                      children: [
+                        Row(
+                          children: [
+                            _buildStatCard(
+                              context,
+                              title: 'Moje zadania',
+                              value: myActiveTasks.toString(),
+                              icon: Icons.assignment_ind_rounded,
+                              color: Colors.blue,
+                              onTap: onNavigateToTasks,
+                            ),
+                            const SizedBox(width: 12),
+                            _buildStatCard(
+                              context,
+                              title: 'Nieprzypisane',
+                              value: unassignedTasks.toString(),
+                              icon: Icons.person_add_alt_1_rounded,
+                              color: Colors.amber,
+                              onTap: onNavigateToTasks,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            _buildStatCard(
+                              context,
+                              title: 'Zakończone',
+                              value: completedTasks.toString(),
+                              icon: Icons.check_circle_rounded,
+                              color: Colors.green,
+                              onTap: onNavigateToTasks,
+                            ),
+                            const SizedBox(width: 12),
+                            _buildStatCard(
+                              context,
+                              title: 'Opóźnione',
+                              value: overdueTasks.toString(),
+                              icon: Icons.warning_amber_rounded,
+                              color: Colors.red,
+                              onTap: onNavigateToTasks,
+                            ),
+                          ],
+                        ),
+                      ],
+                    );
+
+                    final progressCard = Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerLow,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: theme.colorScheme.secondary.withValues(alpha: 0.05),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          SizedBox(
+                            height: 70,
+                            width: 70,
+                            child: Stack(
+                              children: [
+                                Center(
+                                  child: SizedBox(
+                                    height: 64,
+                                    width: 64,
+                                    child: CircularProgressIndicator(
+                                      value: completionPercent / 100,
+                                      strokeWidth: 7,
+                                      backgroundColor: theme.colorScheme.secondary.withValues(alpha: 0.1),
+                                      valueColor: const AlwaysStoppedAnimation<Color>(Colors.green),
+                                    ),
+                                  ),
+                                ),
+                                Center(
+                                  child: Text(
+                                    '$completionPercent%',
+                                    style: GoogleFonts.outfit(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                      color: theme.colorScheme.onSurface,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 20),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Wskaźnik ukończenia',
+                                  style: GoogleFonts.outfit(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                    color: theme.colorScheme.onSurface,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Procent zakończonych zadań w całym zespole.',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    color: theme.colorScheme.secondary.withValues(alpha: 0.6),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+
+                    final bool isMobile = MediaQuery.of(context).size.width < 600;
+
+                    if (isMobile) {
+                      return Column(
+                        children: [
+                          statsGrid,
+                          const SizedBox(height: 16),
+                          progressCard,
+                        ],
+                      );
+                    }
+
                     return Row(
                       children: [
                         // Left: 2x2 Grid of numbers
                         Expanded(
                           flex: 3,
-                          child: Column(
-                            children: [
-                              Row(
-                                children: [
-                                  _buildStatCard(
-                                    context,
-                                    title: 'Moje zadania',
-                                    value: myActiveTasks.toString(),
-                                    icon: Icons.assignment_ind_rounded,
-                                    color: Colors.blue,
-                                    onTap: onNavigateToTasks,
-                                  ),
-                                  const SizedBox(width: 12),
-                                  _buildStatCard(
-                                    context,
-                                    title: 'Nieprzypisane',
-                                    value: unassignedTasks.toString(),
-                                    icon: Icons.person_add_alt_1_rounded,
-                                    color: Colors.amber,
-                                    onTap: onNavigateToTasks,
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
-                              Row(
-                                children: [
-                                  _buildStatCard(
-                                    context,
-                                    title: 'Zakończone',
-                                    value: completedTasks.toString(),
-                                    icon: Icons.check_circle_rounded,
-                                    color: Colors.green,
-                                    onTap: onNavigateToTasks,
-                                  ),
-                                  const SizedBox(width: 12),
-                                  _buildStatCard(
-                                    context,
-                                    title: 'Opóźnione',
-                                    value: overdueTasks.toString(),
-                                    icon: Icons.warning_amber_rounded,
-                                    color: Colors.red,
-                                    onTap: onNavigateToTasks,
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
+                          child: statsGrid,
                         ),
                         const SizedBox(width: 16),
-                        // Right: Completion Circular Ring
+                        // Right: Circular Progress Card
                         Expanded(
                           flex: 2,
                           child: Container(
-                            height: 168,
                             padding: const EdgeInsets.all(16),
+                            height: 140,
                             decoration: BoxDecoration(
                               color: theme.colorScheme.surfaceContainerLow,
                               borderRadius: BorderRadius.circular(20),
@@ -372,23 +455,30 @@ class DashboardScreen extends ConsumerWidget {
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 SizedBox(
-                                  height: 80,
-                                  width: 80,
+                                  height: 60,
+                                  width: 60,
                                   child: Stack(
-                                    alignment: Alignment.center,
                                     children: [
-                                      CircularProgressIndicator(
-                                        value: totalTasks > 0 ? (completedTasks / totalTasks) : 0,
-                                        strokeWidth: 8,
-                                        backgroundColor: theme.colorScheme.secondary.withValues(alpha: 0.1),
-                                        valueColor: const AlwaysStoppedAnimation<Color>(Colors.green),
+                                      Center(
+                                        child: SizedBox(
+                                          height: 54,
+                                          width: 54,
+                                          child: CircularProgressIndicator(
+                                            value: completionPercent / 100,
+                                            strokeWidth: 6,
+                                            backgroundColor: theme.colorScheme.secondary.withValues(alpha: 0.1),
+                                            valueColor: const AlwaysStoppedAnimation<Color>(Colors.green),
+                                          ),
+                                        ),
                                       ),
-                                      Text(
-                                        '$completionPercent%',
-                                        style: GoogleFonts.outfit(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 18,
-                                          color: theme.colorScheme.onSurface,
+                                      Center(
+                                        child: Text(
+                                          '$completionPercent%',
+                                          style: GoogleFonts.outfit(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14,
+                                            color: theme.colorScheme.onSurface,
+                                          ),
                                         ),
                                       ),
                                     ],
@@ -402,6 +492,7 @@ class DashboardScreen extends ConsumerWidget {
                                     fontWeight: FontWeight.w600,
                                     color: theme.colorScheme.secondary.withValues(alpha: 0.7),
                                   ),
+                                  textAlign: TextAlign.center,
                                 ),
                               ],
                             ),
