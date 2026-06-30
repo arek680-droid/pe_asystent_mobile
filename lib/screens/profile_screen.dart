@@ -8,6 +8,7 @@ import '../providers/user_stats_provider.dart';
 import '../providers/avatar_provider.dart';
 import '../providers/profile_provider.dart';
 import '../providers/settings_provider.dart';
+import '../providers/update_provider.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -371,7 +372,11 @@ class ProfileScreen extends ConsumerWidget {
                   ListTile(
                     leading: Icon(Icons.info_outline, color: theme.colorScheme.primary),
                     title: const Text('O aplikacji'),
-                    subtitle: const Text('Wersja 1.0.0'),
+                    subtitle: Text(
+                      ref.watch(updateProvider).currentVersion.isNotEmpty
+                          ? ref.watch(updateProvider).currentVersion
+                          : 'Wersja 1.0.0',
+                    ),
                     onTap: () {},
                   ),
                 ],

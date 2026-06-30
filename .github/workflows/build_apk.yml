@@ -37,12 +37,7 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      # 5. Wygenerowanie tymczasowego klucza podpisującego wewnątrz projektu (zapobiega błędowi validateSigningDebug)
-      - name: Generate Debug Keystore
-        run: |
-          echo "yes" | keytool -genkey -v -keystore android/app/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
-
-      # 6. Zbudowanie pliku APK (wersja debug, najszybsza do testów)
+      # 5. Zbudowanie pliku APK (wersja debug, najszybsza do testów)
       - name: Build APK
         run: flutter build apk --debug --build-number=${{ github.run_number }}
 
