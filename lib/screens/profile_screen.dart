@@ -189,7 +189,8 @@ class ProfileScreen extends ConsumerWidget {
     final name = profileState.value ?? email.split('@')[0];
 
     final isAdmin = ref.watch(isAdminProvider).value ?? false;
-    final showGamification = ref.watch(gamificationSettingsProvider).value ?? true;
+    final showGamificationSetting = ref.watch(gamificationSettingsProvider).value ?? true;
+    final showGamification = showGamificationSetting || isAdmin;
 
     return Scaffold(
       appBar: AppBar(
@@ -400,7 +401,7 @@ class ProfileScreen extends ConsumerWidget {
                       title: const Text('Pokazuj paski EXP i grywalizację'),
                       subtitle: const Text('Globalne włączenie poziomu/EXP dla wszystkich użytkowników'),
                       trailing: Switch(
-                        value: showGamification,
+                        value: showGamificationSetting,
                         onChanged: (val) {
                           ref.read(gamificationSettingsProvider.notifier).updateSetting(val);
                         },

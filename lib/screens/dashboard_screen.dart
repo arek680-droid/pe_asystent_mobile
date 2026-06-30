@@ -130,7 +130,9 @@ class DashboardScreen extends ConsumerWidget {
     final userStats = ref.watch(userStatsProvider);
     final tasksAsync = ref.watch(tasksProvider);
     final activityAsync = ref.watch(recentActivityProvider);
-    final showGamification = ref.watch(gamificationSettingsProvider).value ?? true;
+    final isAdmin = ref.watch(isAdminProvider).value ?? false;
+    final showGamificationSetting = ref.watch(gamificationSettingsProvider).value ?? true;
+    final showGamification = showGamificationSetting || isAdmin;
 
     return Scaffold(
       body: SafeArea(
