@@ -289,6 +289,7 @@ class DashboardScreen extends ConsumerWidget {
                     final myActiveTasks = tasks.where((t) => t.assignedTo == user?.id && t.status != 'completed').length;
                     final unassignedTasks = tasks.where((t) => (t.assignedTo == null || t.assignedTo!.isEmpty) && t.status != 'completed').length;
                     final completedTasks = tasks.where((t) => t.status == 'completed').length;
+                    final overdueTasks = tasks.where((t) => t.status != 'completed' && t.dueDate != null && t.dueDate!.isBefore(DateTime.now())).length;
                     final totalTasks = tasks.length;
                     final completionPercent = totalTasks > 0 ? (completedTasks / totalTasks * 100).round() : 0;
 
@@ -334,10 +335,10 @@ class DashboardScreen extends ConsumerWidget {
                                   const SizedBox(width: 12),
                                   _buildStatCard(
                                     context,
-                                    title: 'Wszystkie',
-                                    value: totalTasks.toString(),
-                                    icon: Icons.list_rounded,
-                                    color: theme.colorScheme.primary,
+                                    title: 'Opóźnione',
+                                    value: overdueTasks.toString(),
+                                    icon: Icons.warning_amber_rounded,
+                                    color: Colors.red,
                                     onTap: onNavigateToTasks,
                                   ),
                                 ],
