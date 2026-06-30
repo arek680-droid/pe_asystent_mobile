@@ -627,8 +627,8 @@ class DashboardScreen extends ConsumerWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
         child: Container(
-          padding: const EdgeInsets.all(16),
-          height: 78,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          height: 64,
           decoration: BoxDecoration(
             color: theme.colorScheme.surfaceContainerLow,
             borderRadius: BorderRadius.circular(16),
@@ -646,33 +646,13 @@ class DashboardScreen extends ConsumerWidget {
                 ),
                 child: Icon(icon, color: color, size: 20),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      value,
-                      style: GoogleFonts.outfit(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                        color: theme.colorScheme.onSurface,
-                        height: 1.1,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      title,
-                      style: GoogleFonts.inter(
-                        fontSize: 11,
-                        color: theme.colorScheme.secondary.withValues(alpha: 0.6),
-                        fontWeight: FontWeight.w500,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
+              const SizedBox(width: 14),
+              Text(
+                value,
+                style: GoogleFonts.outfit(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 22,
+                  color: theme.colorScheme.onSurface,
                 ),
               ),
             ],
