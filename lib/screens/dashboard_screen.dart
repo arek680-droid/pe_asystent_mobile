@@ -296,10 +296,11 @@ class DashboardScreen extends ConsumerWidget {
                   data: (tasks) {
                     final myActiveTasks = tasks.where((t) => t.assignedTo == user?.id && t.status != 'completed').length;
                     final unassignedTasks = tasks.where((t) => (t.assignedTo == null || t.assignedTo!.isEmpty) && t.status != 'completed').length;
-                    final completedTasks = tasks.where((t) => t.status == 'completed').length;
+                    final completedTasks = tasks.where((t) => t.assignedTo == user?.id && t.status == 'completed').length;
+                    final teamCompletedTasks = tasks.where((t) => t.status == 'completed').length;
                     final overdueTasks = tasks.where((t) => t.status != 'completed' && t.dueDate != null && t.dueDate!.isBefore(DateTime.now())).length;
                     final totalTasks = tasks.length;
-                    final completionPercent = totalTasks > 0 ? (completedTasks / totalTasks * 100).round() : 0;
+                    final completionPercent = totalTasks > 0 ? (teamCompletedTasks / totalTasks * 100).round() : 0;
 
                     final statsGrid = Column(
                       children: [
