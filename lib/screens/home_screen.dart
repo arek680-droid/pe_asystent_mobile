@@ -10,6 +10,7 @@ import '../providers/user_stats_provider.dart';
 import '../providers/update_provider.dart';
 import '../providers/avatar_provider.dart';
 import '../providers/profile_provider.dart';
+import '../providers/settings_provider.dart';
 import 'dashboard_screen.dart';
 import 'profile_screen.dart';
 import 'task_detail_sheet.dart';
@@ -255,6 +256,9 @@ class TasksDashboard extends ConsumerWidget {
     final activeAvatarId = ref.watch(avatarProvider);
     final profileState = ref.watch(profileProvider);
     final theme = Theme.of(context);
+    final isAdmin = ref.watch(isAdminProvider).value ?? false;
+    final showGamificationSetting = ref.watch(gamificationSettingsProvider).value ?? true;
+    final showGamification = showGamificationSetting || isAdmin;
 
     // Calculate EXP percentage
     final double expProgress = userStats.nextLevelExp > 0 
@@ -267,7 +271,7 @@ class TasksDashboard extends ConsumerWidget {
         appBar: AppBar(
           toolbarHeight: 0, // Hide standard toolbar, we build our own gamified header
           bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(220),
+            preferredSize: Size.fromHeight(showGamification ? 220 : 110),
             child: Container(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
               child: Column(
@@ -313,101 +317,108 @@ class TasksDashboard extends ConsumerWidget {
                           ],
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF4F46E5), Color(0xFF818CF8)],
-                          ),
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF4F46E5).withValues(alpha: 0.3),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
+                      if (showGamification) ...[
+                        const SizedBox(width: 12),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF4F46E5), Color(0xFF818CF8)],
                             ),
-                          ],
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.bolt, color: Colors.amber, size: 18),
-                            const SizedBox(width: 4),
-                            Text(
-                              'LVL ${userStats.level}',
-                              style: GoogleFonts.outfit(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF4F46E5).withValues(alpha: 0.3),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
                               ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  // EXP progress bar
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Doświadczenie (EXP)',
-                            style: theme.textTheme.bodyMedium?.copyWith(fontSize: 12),
+                            ],
                           ),
-                          Text(
-                            '${userStats.exp} / ${userStats.nextLevelExp} EXP',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Container(
-                        height: 8,
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.surface,
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(
-                            color: theme.dividerTheme.color ?? Colors.grey.shade200,
-                            width: 0.5,
-                          ),
-                        ),
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: AnimatedFractionallySizedBox(
-                            duration: const Duration(milliseconds: 500),
-                            curve: Curves.easeOutCubic,
-                            widthFactor: expProgress,
-                            child: Container(
-                              height: 8,
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [Color(0xFF4F46E5), Color(0xFF818CF8)],
+                          child: Row(
+                            children: [
+                              const Icon(Icons.bolt, color: Colors.amber, size: 18),
+                              const SizedBox(width: 4),
+                              Text(
+                                'LVL ${userStats.level}',
+                                style: GoogleFonts.outfit(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
                                 ),
-                                borderRadius: BorderRadius.circular(4),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  if (showGamification) ...[
+                    const SizedBox(height: 20),
+                    // EXP progress bar
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Doświadczenie (EXP)',
+                              style: theme.textTheme.bodyMedium?.copyWith(fontSize: 12),
+                            ),
+                            Text(
+                              '${userStats.exp} / ${userStats.nextLevelExp} EXP',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          height: 8,
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.surface,
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(
+                              color: theme.dividerTheme.color ?? Colors.grey.shade200,
+                              width: 0.5,
+                            ),
+                          ),
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: AnimatedFractionallySizedBox(
+                              duration: const Duration(milliseconds: 500),
+                              curve: Curves.easeOutCubic,
+                              widthFactor: expProgress,
+                              child: Container(
+                                height: 8,
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [Color(0xFF4F46E5), Color(0xFF818CF8)],
+                                  ),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
                               ),
                             ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: 16),
                   // Tabbar
                   TabBar(
                     dividerColor: Colors.transparent,
-                    indicatorColor: theme.colorScheme.primary,
+                    indicatorSize: TabBarIndicatorSize.tab,
+                    indicator: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      color: theme.colorScheme.primary.withValues(alpha: 0.08),
+                    ),
                     labelColor: theme.colorScheme.primary,
-                    unselectedLabelColor: theme.colorScheme.secondary.withValues(alpha: 0.5),
-                    labelStyle: GoogleFonts.inter(fontWeight: FontWeight.bold),
-                    unselectedLabelStyle: GoogleFonts.inter(fontWeight: FontWeight.normal),
+                    unselectedLabelColor: theme.colorScheme.secondary,
+                    labelStyle: const TextStyle(fontWeight: FontWeight.bold),
                     tabs: const [
                       Tab(text: 'Moje zadania'),
                       Tab(text: 'Nieprzypisane'),
@@ -517,14 +528,19 @@ class TasksDashboard extends ConsumerWidget {
                 }
 
                 if (newStatus == 'completed') {
+                  final expBonus = task.priority == 'critical' ? 120 : task.priority == 'high' ? 75 : task.priority == 'medium' ? 40 : 20;
+                  final message = showGamification 
+                      ? 'Zadanie ukończone! +$expBonus EXP'
+                      : 'Zadanie zostało ukończone!';
+                  
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Zadanie ukończone! +${task.priority == 'critical' ? 120 : task.priority == 'high' ? 75 : task.priority == 'medium' ? 40 : 20} EXP'),
+                      content: Text(message),
                       behavior: SnackBarBehavior.floating,
                       backgroundColor: Colors.green.shade800,
                     ),
                   );
-                  if (leveledUp) {
+                  if (showGamification && leveledUp) {
                     _celebrateLevelUp(context, ref.read(userStatsProvider).level);
                   }
                 } else {
