@@ -11,6 +11,7 @@ import '../providers/update_provider.dart';
 import '../providers/avatar_provider.dart';
 import '../providers/profile_provider.dart';
 import '../providers/settings_provider.dart';
+import '../providers/realtime_notification_provider.dart';
 import 'dashboard_screen.dart';
 import 'profile_screen.dart';
 import 'task_detail_sheet.dart';
@@ -244,6 +245,9 @@ class TasksDashboard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Initialize real-time notifications
+    ref.watch(realtimeNotificationProvider);
+
     // Listen for updates and show a dialog if one is available
     ref.listen<UpdateState>(updateProvider, (previous, next) {
       if (next.hasUpdate && !next.isLoading && next.error == null) {
