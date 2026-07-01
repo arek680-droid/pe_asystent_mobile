@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class NotificationService {
@@ -5,28 +7,51 @@ class NotificationService {
   factory NotificationService() => _instance;
   NotificationService._internal();
 
-  final FlutterLocalNotificationsPlugin _localNotificationsPlugin = FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin _localNotificationsPlugin =
+      FlutterLocalNotificationsPlugin();
+
+  bool _initialized = false;
+
+  bool get isInitialized => _initialized;
 
   Future<void> initialize() async {
-    // Android Initialization settings
-    const AndroidInitializationSettings initializationSettingsAndroid =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+    if (_initialized) return;
 
-    const InitializationSettings initializationSettings = InitializationSettings(
-      android: initializationSettingsAndroid,
-    );
+    try {
+      // Android Initialization settings
+      const AndroidInitializationSettings initializationSettingsAndroid =
+          AndroidInitializationSettings('@mipmap/ic_launcher');
 
-    await _localNotificationsPlugin.initialize(
-      settings: initializationSettings,
-      onDidReceiveNotificationResponse: (NotificationResponse details) {
-        // Here we could handle notification click events if needed
-      },
-    );
+      const InitializationSettings initializationSettings =
+          InitializationSettings(
+        android: initializationSettingsAndroid,
+      );
 
-    // Request permissions for Android 13+ (API level 33+)
-    await _localNotificationsPlugin
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-        ?.requestNotificationsPermission();
+      final result = await _localNotificationsPlugin.initialize(
+        settings: initializationSettings,
+        onDidReceiveNotificationResponse: (NotificationResponse details) {
+          debugPrint('[NotificationService] Notification clicked: ${details.payload}');
+        },
+      );
+
+      debugPrint('[NotificationService] initialize() result: $result');
+
+      // Request permissions for Android 13+ (API level 33+)
+      if (!kIsWeb && Platform.isAndroid) {
+        final androidImpl = _localNotificationsPlugin
+            .resolvePlatformSpecificImplementation<
+                AndroidFlutterLocalNotificationsPlugin>();
+        if (androidImpl != null) {
+          final granted = await androidImpl.requestNotificationsPermission();
+          debugPrint('[NotificationService] Permission granted: $granted');
+        }
+      }
+
+      _initialized = true;
+      debugPrint('[NotificationService] Initialized successfully');
+    } catch (e) {
+      debugPrint('[NotificationService] ERROR during initialization: $e');
+    }
   }
 
   Future<void> showNotification({
@@ -34,27 +59,38 @@ class NotificationService {
     required String title,
     required String body,
   }) async {
-    const AndroidNotificationDetails androidPlatformChannelSpecifics =
-        AndroidNotificationDetails(
-      'pe_asystent_notifications', // Channel ID
-      'Powiadomienia PE Asystent', // Channel Name
-      channelDescription: 'Kanał do powiadomień o zadaniach i komentarzach',
-      importance: Importance.max,
-      priority: Priority.high,
-      showWhen: true,
-      playSound: true,
-      enableVibration: true,
-    );
+    if (!_initialized) {
+      debugPrint('[NotificationService] WARNING: Not initialized, initializing now...');
+      await initialize();
+    }
 
-    const NotificationDetails platformChannelSpecifics = NotificationDetails(
-      android: androidPlatformChannelSpecifics,
-    );
+    try {
+      const AndroidNotificationDetails androidPlatformChannelSpecifics =
+          AndroidNotificationDetails(
+        'pe_asystent_notifications', // Channel ID
+        'Powiadomienia PE Asystent', // Channel Name
+        channelDescription: 'Kanał do powiadomień o zadaniach i komentarzach',
+        importance: Importance.max,
+        priority: Priority.high,
+        showWhen: true,
+        playSound: true,
+        enableVibration: true,
+      );
 
-    await _localNotificationsPlugin.show(
-      id: id,
-      title: title,
-      body: body,
-      notificationDetails: platformChannelSpecifics,
-    );
+      const NotificationDetails platformChannelSpecifics = NotificationDetails(
+        android: androidPlatformChannelSpecifics,
+      );
+
+      await _localNotificationsPlugin.show(
+        id: id,
+        title: title,
+        body: body,
+        notificationDetails: platformChannelSpecifics,
+      );
+
+      debugPrint('[NotificationService] Notification shown: "$title" - "$body"');
+    } catch (e) {
+      debugPrint('[NotificationService] ERROR showing notification: $e');
+    }
   }
 }

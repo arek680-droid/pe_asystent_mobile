@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'auth_provider.dart';
@@ -5,9 +6,15 @@ import '../services/notification_service.dart';
 
 final realtimeNotificationProvider = Provider<void>((ref) {
   final user = ref.watch(authProvider);
-  if (user == null) return;
+  if (user == null) {
+    debugPrint('[RealtimeNotifications] No user logged in, skipping.');
+    return;
+  }
+
+  debugPrint('[RealtimeNotifications] Setting up for user: ${user.id}');
 
   final notificationService = NotificationService();
+  // Fire-and-forget initialization — showNotification will also auto-init if needed.
   notificationService.initialize();
 
   final client = Supabase.instance.client;
@@ -20,25 +27,38 @@ final realtimeNotificationProvider = Provider<void>((ref) {
         schema: 'public',
         table: 'project_tasks',
         callback: (payload) {
+          debugPrint('[RealtimeNotifications] NEW TASK event received!');
+          debugPrint('[RealtimeNotifications] Payload: ${payload.newRecord}');
+
           final newRecord = payload.newRecord;
           final title = newRecord['title'] as String? ?? 'Nowe zadanie';
           final assignedTo = newRecord['assigned_to'] as String?;
           final creatorId = newRecord['created_by'] as String?;
 
-          // Ignore if user is the creator
-          if (creatorId == user.id) return;
+          debugPrint('[RealtimeNotifications] Task creator: $creatorId, assigned_to: $assignedTo, current user: ${user.id}');
 
-          // Notify only if it is assigned to this user OR is unassigned
+          // Ignore if user is the creator
+          if (creatorId == user.id) {
+            debugPrint('[RealtimeNotifications] Skipping — user is the creator.');
+            return;
+          }
+
+          // Notify only if assigned to this user OR unassigned
           if (assignedTo == null || assignedTo.isEmpty || assignedTo == user.id) {
+            debugPrint('[RealtimeNotifications] Showing task notification...');
             notificationService.showNotification(
-              id: newRecord['id'].hashCode,
+              id: DateTime.now().millisecondsSinceEpoch.remainder(100000),
               title: 'Nowe zadanie 📋',
               body: title,
             );
+          } else {
+            debugPrint('[RealtimeNotifications] Skipping — assigned to someone else: $assignedTo');
           }
         },
       )
-      .subscribe();
+      .subscribe((status, [error]) {
+        debugPrint('[RealtimeNotifications] Tasks channel status: $status, error: $error');
+      });
 
   // 2. Listen for new comments
   final commentsChannel = client
@@ -48,13 +68,21 @@ final realtimeNotificationProvider = Provider<void>((ref) {
         schema: 'public',
         table: 'project_task_comments',
         callback: (payload) async {
+          debugPrint('[RealtimeNotifications] NEW COMMENT event received!');
+          debugPrint('[RealtimeNotifications] Payload: ${payload.newRecord}');
+
           final newRecord = payload.newRecord;
           final comment = newRecord['comment'] as String? ?? '';
           final taskId = newRecord['task_id'] as String?;
           final authorId = newRecord['user_id'] as String?;
 
+          debugPrint('[RealtimeNotifications] Comment author: $authorId, current user: ${user.id}');
+
           // Ignore if user is the author
-          if (authorId == user.id) return;
+          if (authorId == user.id) {
+            debugPrint('[RealtimeNotifications] Skipping — user is the comment author.');
+            return;
+          }
 
           if (taskId != null) {
             try {
@@ -64,33 +92,39 @@ final realtimeNotificationProvider = Provider<void>((ref) {
                   .eq('id', taskId)
                   .maybeSingle();
 
+              debugPrint('[RealtimeNotifications] Task data for comment: $taskData');
+
               if (taskData != null) {
                 final taskTitle = taskData['title'] as String? ?? 'Zadanie';
                 final assignedTo = taskData['assigned_to'] as String?;
                 final createdBy = taskData['created_by'] as String?;
 
-                // Notify only if user is assigned to the task, or created the task,
-                // or if the task is unassigned (so everyone is interested).
                 if (assignedTo == null ||
                     assignedTo.isEmpty ||
                     assignedTo == user.id ||
                     createdBy == user.id) {
+                  debugPrint('[RealtimeNotifications] Showing comment notification...');
                   notificationService.showNotification(
-                    id: newRecord['id'].hashCode,
+                    id: DateTime.now().millisecondsSinceEpoch.remainder(100000),
                     title: 'Nowy komentarz w: $taskTitle 💬',
                     body: comment,
                   );
+                } else {
+                  debugPrint('[RealtimeNotifications] Skipping — not relevant to user.');
                 }
               }
-            } catch (_) {
-              // Fail silently on fetch error
+            } catch (e) {
+              debugPrint('[RealtimeNotifications] ERROR fetching task for comment: $e');
             }
           }
         },
       )
-      .subscribe();
+      .subscribe((status, [error]) {
+        debugPrint('[RealtimeNotifications] Comments channel status: $status, error: $error');
+      });
 
   ref.onDispose(() {
+    debugPrint('[RealtimeNotifications] Disposing channels...');
     tasksChannel.unsubscribe();
     commentsChannel.unsubscribe();
   });
