@@ -1,6 +1,7 @@
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'log_service.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -18,6 +19,7 @@ class NotificationService {
     if (_initialized) return;
 
     try {
+      LogService().addLog('NotificationService: Starting initialization...');
       // Android Initialization settings
       const AndroidInitializationSettings initializationSettingsAndroid =
           AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -30,11 +32,11 @@ class NotificationService {
       final result = await _localNotificationsPlugin.initialize(
         settings: initializationSettings,
         onDidReceiveNotificationResponse: (NotificationResponse details) {
-          debugPrint('[NotificationService] Notification clicked: ${details.payload}');
+          LogService().addLog('NotificationService: Notification clicked payload=${details.payload}');
         },
       );
 
-      debugPrint('[NotificationService] initialize() result: $result');
+      LogService().addLog('NotificationService: Plugin initialize() result = $result');
 
       // Request permissions for Android 13+ (API level 33+)
       if (!kIsWeb && Platform.isAndroid) {
@@ -43,14 +45,18 @@ class NotificationService {
                 AndroidFlutterLocalNotificationsPlugin>();
         if (androidImpl != null) {
           final granted = await androidImpl.requestNotificationsPermission();
-          debugPrint('[NotificationService] Permission granted: $granted');
+          LogService().addLog('NotificationService: Android permission request result: $granted');
+        } else {
+          LogService().addLog('NotificationService: Could not obtain Android implementation of local notifications plugin');
         }
+      } else {
+        LogService().addLog('NotificationService: Skipping permissions (Platform is not Android)');
       }
 
       _initialized = true;
-      debugPrint('[NotificationService] Initialized successfully');
+      LogService().addLog('NotificationService: Initialized successfully');
     } catch (e) {
-      debugPrint('[NotificationService] ERROR during initialization: $e');
+      LogService().addLog('NotificationService: ERROR during initialization: $e');
     }
   }
 
@@ -60,7 +66,7 @@ class NotificationService {
     required String body,
   }) async {
     if (!_initialized) {
-      debugPrint('[NotificationService] WARNING: Not initialized, initializing now...');
+      LogService().addLog('NotificationService: showNotification called but not initialized. Initializing now...');
       await initialize();
     }
 
@@ -81,6 +87,7 @@ class NotificationService {
         android: androidPlatformChannelSpecifics,
       );
 
+      LogService().addLog('NotificationService: Sending local show() request for ID: $id, Title: "$title"');
       await _localNotificationsPlugin.show(
         id: id,
         title: title,
@@ -88,9 +95,9 @@ class NotificationService {
         notificationDetails: platformChannelSpecifics,
       );
 
-      debugPrint('[NotificationService] Notification shown: "$title" - "$body"');
+      LogService().addLog('NotificationService: Notification successfully shown on system.');
     } catch (e) {
-      debugPrint('[NotificationService] ERROR showing notification: $e');
+      LogService().addLog('NotificationService: ERROR showing notification: $e');
     }
   }
 }

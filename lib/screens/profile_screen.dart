@@ -9,6 +9,7 @@ import '../providers/avatar_provider.dart';
 import '../providers/profile_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/update_provider.dart';
+import 'diagnostics_screen.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -378,6 +379,20 @@ class ProfileScreen extends ConsumerWidget {
                           : 'Wersja 1.0.0',
                     ),
                     onTap: () {},
+                  ),
+                  const Divider(height: 1),
+                  ListTile(
+                    leading: Icon(Icons.bug_report_outlined, color: theme.colorScheme.primary),
+                    title: const Text('Diagnostyka powiadomień'),
+                    subtitle: const Text('Sprawdź status połączenia Realtime'),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const DiagnosticsScreen(),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
