@@ -285,3 +285,176 @@ class AttachmentsNotifier extends StateNotifier<AsyncValue<List<TaskAttachment>>
   }
 }
 
+// --- WAREHOUSE PARTS PROVIDER ---
+
+class WarehousePart {
+  final String id;
+  final String partNumber;
+  final String name;
+  final double quantity;
+  final String unit;
+  final double unitPrice;
+  final String? categoryName;
+
+  WarehousePart({
+    required this.id,
+    required this.partNumber,
+    required this.name,
+    required this.quantity,
+    required this.unit,
+    required this.unitPrice,
+    this.categoryName,
+  });
+
+  factory WarehousePart.fromJson(Map<String, dynamic> json) {
+    String? category;
+    final catData = json['warehouse_categories'];
+    if (catData != null) {
+      category = catData['name']?.toString();
+    }
+
+    return WarehousePart(
+      id: json['id']?.toString() ?? '',
+      partNumber: json['part_number']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
+      quantity: (json['quantity'] as num?)?.toDouble() ?? 0.0,
+      unit: json['unit']?.toString() ?? 'szt.',
+      unitPrice: (json['unit_price'] as num?)?.toDouble() ?? 0.0,
+      categoryName: category,
+    );
+  }
+}
+
+final warehousePartsProvider = FutureProvider<List<WarehousePart>>((ref) async {
+  final response = await Supabase.instance.client
+      .from('warehouse_parts')
+      .select('id, part_number, name, quantity, unit, unit_price, warehouse_categories(name)')
+      .eq('is_active', true)
+      .gt('quantity', 0)
+      .order('part_number', ascending: true);
+
+  final List<dynamic> data = response as List<dynamic>;
+  return data.map((json) => WarehousePart.fromJson(json as Map<String, dynamic>)).toList();
+});
+
+// --- TASK MATERIALS PROVIDER ---
+
+class TaskMaterial {
+  final String id;
+  final String taskId;
+  final String warehousePartId;
+  final double quantityNeeded;
+  final double quantityTaken;
+  final String? notes;
+  final String partNumber;
+  final String partName;
+  final String unit;
+  final double unitPrice;
+  final String? categoryName;
+
+  TaskMaterial({
+    required this.id,
+    required this.taskId,
+    required this.warehousePartId,
+    required this.quantityNeeded,
+    required this.quantityTaken,
+    this.notes,
+    required this.partNumber,
+    required this.partName,
+    required this.unit,
+    required this.unitPrice,
+    this.categoryName,
+  });
+
+  factory TaskMaterial.fromJson(Map<String, dynamic> json) {
+    final part = json['warehouse_parts'] as Map<String, dynamic>? ?? {};
+    String? category;
+    final catData = part['warehouse_categories'];
+    if (catData != null) {
+      category = catData['name']?.toString();
+    }
+
+    return TaskMaterial(
+      id: json['id']?.toString() ?? '',
+      taskId: json['task_id']?.toString() ?? '',
+      warehousePartId: json['warehouse_part_id']?.toString() ?? '',
+      quantityNeeded: (json['quantity_needed'] as num?)?.toDouble() ?? 0.0,
+      quantityTaken: (json['quantity_taken'] as num?)?.toDouble() ?? 0.0,
+      notes: json['notes']?.toString(),
+      partNumber: part['part_number']?.toString() ?? '',
+      partName: part['name']?.toString() ?? '',
+      unit: part['unit']?.toString() ?? 'szt.',
+      unitPrice: (part['unit_price'] as num?)?.toDouble() ?? 0.0,
+      categoryName: category,
+    );
+  }
+}
+
+final taskMaterialsProvider = StateNotifierProvider.family<TaskMaterialsNotifier, AsyncValue<List<TaskMaterial>>, String>((ref, taskId) {
+  return TaskMaterialsNotifier(taskId);
+});
+
+class TaskMaterialsNotifier extends StateNotifier<AsyncValue<List<TaskMaterial>>> {
+  final String taskId;
+  TaskMaterialsNotifier(this.taskId) : super(const AsyncValue.loading()) {
+    fetchMaterials();
+  }
+
+  Future<void> fetchMaterials() async {
+    try {
+      final response = await Supabase.instance.client
+          .from('project_task_materials')
+          .select('*, warehouse_parts(id, part_number, name, quantity, unit, unit_price, warehouse_categories(name))')
+          .eq('task_id', taskId)
+          .order('created_at', ascending: true);
+
+      final List<dynamic> data = response as List<dynamic>;
+      final list = data.map((json) => TaskMaterial.fromJson(json as Map<String, dynamic>)).toList();
+      state = AsyncValue.data(list);
+    } catch (e, stack) {
+      state = AsyncValue.error(e, stack);
+    }
+  }
+
+  Future<void> addMaterial({
+    required String warehousePartId,
+    required double quantityNeeded,
+    required double quantityTaken,
+    String? notes,
+  }) async {
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      await Supabase.instance.client
+          .from('project_task_materials')
+          .insert({
+            'task_id': taskId,
+            'warehouse_part_id': warehousePartId,
+            'quantity_needed': quantityNeeded,
+            'quantity_taken': quantityTaken,
+            'notes': notes,
+            'assigned_by': user?.id,
+          });
+      await fetchMaterials();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> deleteMaterial(String materialId) async {
+    try {
+      await Supabase.instance.client
+          .from('project_task_materials')
+          .delete()
+          .eq('id', materialId);
+      
+      // Optimistic update
+      state.whenData((list) {
+        state = AsyncValue.data(list.where((m) => m.id != materialId).toList());
+      });
+    } catch (e) {
+      fetchMaterials();
+    }
+  }
+}
+
+

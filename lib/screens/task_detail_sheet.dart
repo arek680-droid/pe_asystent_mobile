@@ -133,6 +133,41 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
     );
   }
 
+  void _confirmDeleteMaterial(BuildContext context, TaskMaterial material) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Usuń materiał'),
+        content: Text('Czy na pewno chcesz usunąć część "${material.partName}" z tego zadania?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Anuluj'),
+          ),
+          TextButton(
+            onPressed: () {
+              ref.read(taskMaterialsProvider(widget.task.id).notifier).deleteMaterial(material.id);
+              Navigator.pop(context);
+            },
+            child: const Text('Usuń', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAddMaterialBottomSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => AddMaterialBottomSheet(taskId: widget.task.id),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final subtasksState = ref.watch(subtasksProvider(widget.task.id));
@@ -502,6 +537,149 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
                     child: Text('Błąd ładowania podzadań: $err'),
                   ),
                 ),
+
+                // Materials Section Header
+                SliverToBoxAdapter(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 24),
+                      const Divider(),
+                      const SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Materiały z magazynu',
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () => _showAddMaterialBottomSheet(context),
+                            icon: Icon(Icons.add_circle_outline, color: theme.colorScheme.primary),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                  ),
+                ),
+
+                // Materials List
+                ref.watch(taskMaterialsProvider(widget.task.id)).when(
+                  data: (materials) {
+                    if (materials.isEmpty) {
+                      return const SliverToBoxAdapter(
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(vertical: 12.0),
+                          child: Text(
+                            'Brak przypisanych materiałów.',
+                            style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey, fontSize: 14),
+                          ),
+                        ),
+                      );
+                    }
+
+                    return SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          final material = materials[index];
+                          final totalCost = material.quantityTaken * material.unitPrice;
+                          return Card(
+                            margin: const EdgeInsets.symmetric(vertical: 6.0),
+                            child: Padding(
+                              padding: const EdgeInsets.all(12.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              material.partNumber,
+                                              style: theme.textTheme.bodyMedium?.copyWith(
+                                                fontWeight: FontWeight.bold,
+                                                fontFamily: 'Courier',
+                                              ),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              material.partName,
+                                              style: theme.textTheme.bodyMedium,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                                        onPressed: () {
+                                          _confirmDeleteMaterial(context, material);
+                                        },
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        'Potrzebne: ${material.quantityNeeded.toStringAsFixed(1)} ${material.unit}',
+                                        style: theme.textTheme.bodySmall,
+                                      ),
+                                      Text(
+                                        'Użyte: ${material.quantityTaken.toStringAsFixed(1)} ${material.unit}',
+                                        style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold),
+                                      ),
+                                      if (totalCost > 0)
+                                        Text(
+                                          '${totalCost.toStringAsFixed(2)} zł',
+                                          style: theme.textTheme.bodySmall?.copyWith(
+                                            color: Colors.amber.shade800,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                  if (material.notes != null && material.notes!.isNotEmpty) ...[
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      'Uwagi: ${material.notes}',
+                                      style: theme.textTheme.bodySmall?.copyWith(
+                                        fontStyle: FontStyle.italic,
+                                        color: theme.colorScheme.secondary.withValues(alpha: 0.6),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                        childCount: materials.length,
+                      ),
+                    );
+                  },
+                  loading: () => const SliverToBoxAdapter(
+                    child: Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(16.0),
+                        child: CircularProgressIndicator(),
+                      ),
+                    ),
+                  ),
+                  error: (err, _) => SliverToBoxAdapter(
+                    child: Text('Błąd ładowania materiałów: $err'),
+                  ),
+                ),
               ],
             ),
           ),
@@ -725,6 +903,283 @@ class _CommentsBottomSheetState extends ConsumerState<CommentsBottomSheet> {
           ],
         ),
       ),
+    );
+  }
+}
+
+// --- ADD MATERIAL BOTTOM SHEET ---
+
+class AddMaterialBottomSheet extends ConsumerStatefulWidget {
+  final String taskId;
+  const AddMaterialBottomSheet({super.key, required this.taskId});
+
+  @override
+  ConsumerState<AddMaterialBottomSheet> createState() => _AddMaterialBottomSheetState();
+}
+
+class _AddMaterialBottomSheetState extends ConsumerState<AddMaterialBottomSheet> {
+  String _searchQuery = '';
+  WarehousePart? _selectedPart;
+  final _qtyNeededController = TextEditingController(text: '1.0');
+  final _qtyTakenController = TextEditingController(text: '1.0');
+  final _notesController = TextEditingController();
+  bool _isSaving = false;
+
+  @override
+  void dispose() {
+    _qtyNeededController.dispose();
+    _qtyTakenController.dispose();
+    _notesController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final partsState = ref.watch(warehousePartsProvider);
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.85,
+      minChildSize: 0.5,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (context, scrollController) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+            left: 20,
+            right: 20,
+            top: 10,
+          ),
+          child: Column(
+            children: [
+              // Drag Handle
+              Container(
+                width: 40,
+                height: 5,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.secondary.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              Text(
+                'Dodaj materiał z magazynu',
+                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+
+              if (_selectedPart == null) ...[
+                // Search field
+                TextField(
+                  decoration: InputDecoration(
+                    hintText: 'Szukaj części (nazwa lub numer)...',
+                    prefixIcon: const Icon(Icons.search),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onChanged: (val) {
+                    setState(() {
+                      _searchQuery = val.toLowerCase();
+                    });
+                  },
+                ),
+                const SizedBox(height: 12),
+                // Parts List
+                Expanded(
+                  child: partsState.when(
+                    data: (parts) {
+                      final filtered = parts.where((p) {
+                        return p.name.toLowerCase().contains(_searchQuery) ||
+                            p.partNumber.toLowerCase().contains(_searchQuery) ||
+                            (p.categoryName?.toLowerCase().contains(_searchQuery) ?? false);
+                      }).toList();
+
+                      if (filtered.isEmpty) {
+                        return const Center(
+                          child: Text(
+                            'Brak dopasowanych części w magazynie.',
+                            style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey),
+                          ),
+                        );
+                      }
+
+                      return ListView.builder(
+                        controller: scrollController,
+                        itemCount: filtered.length,
+                        itemBuilder: (context, idx) {
+                          final part = filtered[idx];
+                          return ListTile(
+                            contentPadding: const EdgeInsets.symmetric(vertical: 4),
+                            title: Text(
+                              part.name,
+                              style: const TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                            subtitle: Text(
+                              'Nr: ${part.partNumber} | Stan: ${part.quantity.toStringAsFixed(1)} ${part.unit}',
+                              style: TextStyle(color: theme.colorScheme.secondary.withValues(alpha: 0.7)),
+                            ),
+                            trailing: Text(
+                              '${part.unitPrice.toStringAsFixed(2)} zł',
+                              style: TextStyle(
+                                color: Colors.amber.shade800,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            onTap: () {
+                              setState(() {
+                                _selectedPart = part;
+                              });
+                            },
+                          );
+                        },
+                      );
+                    },
+                    loading: () => const Center(child: CircularProgressIndicator()),
+                    error: (err, _) => Center(child: Text('Błąd pobierania części: $err')),
+                  ),
+                ),
+              ] else ...[
+                // Form section when part is selected
+                Expanded(
+                  child: ListView(
+                    controller: scrollController,
+                    children: [
+                      // Selected part details card
+                      Card(
+                        color: theme.colorScheme.primary.withValues(alpha: 0.05),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      _selectedPart!.name,
+                                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.close),
+                                    onPressed: () {
+                                      setState(() {
+                                        _selectedPart = null;
+                                      });
+                                    },
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Text('Numer katalogowy: ${_selectedPart!.partNumber}'),
+                              const SizedBox(height: 4),
+                              Text('Stan magazynowy: ${_selectedPart!.quantity.toStringAsFixed(1)} ${_selectedPart!.unit}'),
+                              const SizedBox(height: 4),
+                              Text('Cena jedn.: ${_selectedPart!.unitPrice.toStringAsFixed(2)} zł'),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      // Qty Needed
+                      TextField(
+                        controller: _qtyNeededController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: InputDecoration(
+                          labelText: 'Ilość potrzebna',
+                          suffixText: _selectedPart!.unit,
+                          border: const OutlineInputBorder(),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      // Qty Taken
+                      TextField(
+                        controller: _qtyTakenController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: InputDecoration(
+                          labelText: 'Ilość pobrana / użyta',
+                          suffixText: _selectedPart!.unit,
+                          border: const OutlineInputBorder(),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      // Notes
+                      TextField(
+                        controller: _notesController,
+                        maxLines: 2,
+                        decoration: const InputDecoration(
+                          labelText: 'Notatki (opcjonalnie)',
+                          border: OutlineInputBorder(),
+                          hintText: 'np. Zużyte do naprawy obudowy',
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      // Submit button
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(50),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onPressed: _isSaving
+                            ? null
+                            : () async {
+                                final needed = double.tryParse(_qtyNeededController.text) ?? 1.0;
+                                final taken = double.tryParse(_qtyTakenController.text) ?? 1.0;
+                                if (needed <= 0) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Podaj poprawną ilość potrzebną')),
+                                  );
+                                  return;
+                                }
+                                setState(() {
+                                  _isSaving = true;
+                                });
+                                final navigator = Navigator.of(context);
+                                final scaffoldMessenger = ScaffoldMessenger.of(context);
+                                try {
+                                  await ref
+                                      .read(taskMaterialsProvider(widget.taskId).notifier)
+                                      .addMaterial(
+                                        warehousePartId: _selectedPart!.id,
+                                        quantityNeeded: needed,
+                                        quantityTaken: taken,
+                                        notes: _notesController.text.trim().isEmpty
+                                            ? null
+                                            : _notesController.text.trim(),
+                                      );
+                                  navigator.pop();
+                                } catch (e) {
+                                  scaffoldMessenger.showSnackBar(
+                                    SnackBar(content: Text('Błąd dodawania materiału: $e')),
+                                  );
+                                } finally {
+                                  if (mounted) {
+                                    setState(() {
+                                      _isSaving = false;
+                                    });
+                                  }
+                                }
+                              },
+                        child: _isSaving
+                            ? const CircularProgressIndicator(color: Colors.white)
+                            : const Text('Zapisz w zadaniu', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
     );
   }
 }
