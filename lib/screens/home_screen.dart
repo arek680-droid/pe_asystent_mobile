@@ -570,24 +570,31 @@ class TasksDashboard extends ConsumerWidget {
               }
             }
 
-            return TabBarView(
+            return Column(
               children: [
-                TaskList(
-                  tasks: myTasks,
-                  onStatusChanged: handleStatusChanged,
-                  isEmptyMessage: 'Brak zadań przypisanych do Ciebie. Odpocznij!',
-                ),
-                TaskList(
-                  tasks: unassignedTasks,
-                  onStatusChanged: handleStatusChanged,
-                  isEmptyMessage: 'Brak nieprzypisanych zadań w systemie.',
-                  isUnassignedTab: true,
-                  onAssignToSelf: handleAssignToSelf,
-                ),
-                TaskList(
-                  tasks: completedTasks,
-                  onStatusChanged: handleStatusChanged,
-                  isEmptyMessage: 'Jeszcze nic nie ukończyłeś. Do dzieła!',
+                const TaskActivityLegend(),
+                Expanded(
+                  child: TabBarView(
+                    children: [
+                      TaskList(
+                        tasks: myTasks,
+                        onStatusChanged: handleStatusChanged,
+                        isEmptyMessage: 'Brak zadań przypisanych do Ciebie. Odpocznij!',
+                      ),
+                      TaskList(
+                        tasks: unassignedTasks,
+                        onStatusChanged: handleStatusChanged,
+                        isEmptyMessage: 'Brak nieprzypisanych zadań w systemie.',
+                        isUnassignedTab: true,
+                        onAssignToSelf: handleAssignToSelf,
+                      ),
+                      TaskList(
+                        tasks: completedTasks,
+                        onStatusChanged: handleStatusChanged,
+                        isEmptyMessage: 'Jeszcze nic nie ukończyłeś. Do dzieła!',
+                      ),
+                    ],
+                  ),
                 ),
               ],
             );
@@ -640,6 +647,55 @@ class TaskList extends StatelessWidget {
     this.isUnassignedTab = false,
     this.onAssignToSelf,
   });
+
+  Widget _buildDaysBadge(DateTime createdAt, ThemeData theme) {
+    final difference = DateTime.now().difference(createdAt).inDays;
+    final days = difference < 0 ? 0 : difference;
+    
+    Color textColor;
+    String label;
+    bool showDot = true;
+
+    if (days < 3) {
+      textColor = Colors.green.shade600;
+      label = "$days ${days == 1 ? 'dzień' : 'dni'}";
+    } else if (days >= 14) {
+      textColor = Colors.red.shade600;
+      label = "$days ${days == 1 ? 'dzień' : 'dni'}";
+    } else if (days >= 7) {
+      textColor = Colors.orange.shade600;
+      label = "$days ${days == 1 ? 'dzień' : 'dni'}";
+    } else {
+      textColor = theme.colorScheme.secondary.withValues(alpha: 0.6);
+      label = "$days ${days == 1 ? 'dzień' : 'dni'}";
+      showDot = false;
+    }
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (showDot) ...[
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(
+              color: textColor,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 4),
+        ],
+        Text(
+          label.toUpperCase(),
+          style: GoogleFonts.inter(
+            fontSize: 9,
+            fontWeight: FontWeight.bold,
+            color: textColor,
+          ),
+        ),
+      ],
+    );
+  }
 
   Color _getPriorityColor(String priority) {
     switch (priority) {
@@ -870,15 +926,28 @@ class TaskList extends StatelessWidget {
                                 ),
                               ),
                               const SizedBox(width: 6),
-                              Text(
-                                task.priority.toUpperCase(),
-                                style: GoogleFonts.inter(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  color: priorityColor,
-                                ),
-                              ),
-                              const Spacer(),
+                               Text(
+                                 task.priority.toUpperCase(),
+                                 style: GoogleFonts.inter(
+                                   fontSize: 10,
+                                   fontWeight: FontWeight.bold,
+                                   color: priorityColor,
+                                 ),
+                               ),
+                               if (task.createdAt != null) ...[
+                                 const SizedBox(width: 8),
+                                 Container(
+                                   width: 4,
+                                   height: 4,
+                                   decoration: BoxDecoration(
+                                     color: theme.colorScheme.secondary.withValues(alpha: 0.3),
+                                     shape: BoxShape.circle,
+                                   ),
+                                 ),
+                                 const SizedBox(width: 8),
+                                 _buildDaysBadge(task.createdAt!, theme),
+                               ],
+                               const Spacer(),
                               // Status Badge
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -929,6 +998,82 @@ class TaskList extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+// --- TASK ACTIVITY LEGEND ---
+
+class TaskActivityLegend extends StatelessWidget {
+  const TaskActivityLegend({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: theme.cardColor.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: theme.colorScheme.secondary.withValues(alpha: 0.1),
+          width: 0.5,
+        ),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.query_stats_rounded,
+              size: 14,
+              color: theme.colorScheme.secondary.withValues(alpha: 0.6),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Brak aktywności: ',
+              style: TextStyle(
+                fontSize: 11,
+                color: theme.colorScheme.secondary.withValues(alpha: 0.8),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(width: 8),
+            _buildDot(Colors.green.shade600, '< 3 dni'),
+            const SizedBox(width: 12),
+            _buildDot(Colors.orange.shade600, '> 7 dni'),
+            const SizedBox(width: 12),
+            _buildDot(Colors.red.shade600, '> 14 dni'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDot(Color color, String label) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            color: color,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
     );
   }
 }

@@ -12,6 +12,7 @@ class ProjectTask {
   final DateTime? startDate;
   final DateTime? dueDate;
   final DateTime? completedAt;
+  final DateTime? createdAt; // NEW
   final double estimatedHours;
   final double actualHours;
 
@@ -29,6 +30,7 @@ class ProjectTask {
     this.startDate,
     this.dueDate,
     this.completedAt,
+    this.createdAt, // NEW
     required this.estimatedHours,
     required this.actualHours,
   });
@@ -48,6 +50,7 @@ class ProjectTask {
       startDate: json['start_date'] != null ? DateTime.tryParse(json['start_date'].toString()) : null,
       dueDate: json['due_date'] != null ? DateTime.tryParse(json['due_date'].toString()) : null,
       completedAt: json['completed_at'] != null ? DateTime.tryParse(json['completed_at'].toString()) : null,
+      createdAt: json['created_at'] != null ? DateTime.tryParse(json['created_at'].toString()) : null, // NEW
       estimatedHours: (json['estimated_hours'] as num?)?.toDouble() ?? 0.0,
       actualHours: (json['actual_hours'] as num?)?.toDouble() ?? 0.0,
     );
@@ -68,6 +71,7 @@ class ProjectTask {
       'start_date': startDate?.toIso8601String(),
       'due_date': dueDate?.toIso8601String(),
       'completed_at': completedAt?.toIso8601String(),
+      'created_at': createdAt?.toIso8601String(), // NEW
       'estimated_hours': estimatedHours,
       'actual_hours': actualHours,
     };
@@ -87,6 +91,7 @@ class ProjectTask {
     DateTime? startDate,
     DateTime? dueDate,
     DateTime? completedAt,
+    DateTime? createdAt, // NEW
     double? estimatedHours,
     double? actualHours,
   }) {
@@ -104,6 +109,7 @@ class ProjectTask {
       startDate: startDate ?? this.startDate,
       dueDate: dueDate ?? this.dueDate,
       completedAt: completedAt ?? this.completedAt,
+      createdAt: createdAt ?? this.createdAt, // NEW
       estimatedHours: estimatedHours ?? this.estimatedHours,
       actualHours: actualHours ?? this.actualHours,
     );
