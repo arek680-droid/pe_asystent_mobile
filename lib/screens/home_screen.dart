@@ -656,19 +656,15 @@ class TaskList extends StatelessWidget {
     String label;
     bool showDot = true;
 
-    if (days < 3) {
+    if (days <= 3) {
       textColor = Colors.green.shade600;
       label = "$days ${days == 1 ? 'dzień' : 'dni'}";
     } else if (days >= 14) {
       textColor = Colors.red.shade600;
       label = "$days ${days == 1 ? 'dzień' : 'dni'}";
-    } else if (days >= 7) {
+    } else {
       textColor = Colors.orange.shade600;
       label = "$days ${days == 1 ? 'dzień' : 'dni'}";
-    } else {
-      textColor = theme.colorScheme.secondary.withValues(alpha: 0.6);
-      label = "$days ${days == 1 ? 'dzień' : 'dni'}";
-      showDot = false;
     }
 
     return Row(
@@ -1041,11 +1037,11 @@ class TaskActivityLegend extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            _buildDot(Colors.green.shade600, '< 3 dni'),
+            _buildDot(Colors.green.shade600, '<= 3 dni'),
             const SizedBox(width: 12),
-            _buildDot(Colors.orange.shade600, '> 7 dni'),
+            _buildDot(Colors.orange.shade600, '4-13 dni'),
             const SizedBox(width: 12),
-            _buildDot(Colors.red.shade600, '> 14 dni'),
+            _buildDot(Colors.red.shade600, '>= 14 dni'),
           ],
         ),
       ),
