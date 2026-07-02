@@ -12,9 +12,10 @@ import 'task_detail_sheet.dart';
 enum ActivityType {
   comment,
   newTask,
+  completedTask,
 }
 
-// Model for recent activity shown in the dashboard feed (combines comments and new tasks)
+// Model for recent activity shown in the dashboard feed (combines comments, new tasks, and completed tasks)
 class DashboardActivityItem {
   final String id;
   final ActivityType type;
@@ -37,7 +38,7 @@ class DashboardActivityItem {
   });
 }
 
-// Provider to fetch and combine recent comments and new tasks into a single feed of 10 items
+// Provider to fetch and combine recent comments, new tasks, and completed tasks into a single feed of 10 items
 final recentActivityProvider = FutureProvider.autoDispose<List<DashboardActivityItem>>((ref) async {
   // 1. Fetch 10 most recent comments
   final commentsResponse = await Supabase.instance.client
@@ -53,8 +54,18 @@ final recentActivityProvider = FutureProvider.autoDispose<List<DashboardActivity
       .order('created_at', ascending: false)
       .limit(10);
 
+  // 3. Fetch 10 most recently completed tasks
+  final completedResponse = await Supabase.instance.client
+      .from('project_tasks')
+      .select('id, title, completed_at, assignee:user_profiles!project_tasks_assigned_to_fkey(display_name)')
+      .eq('status', 'completed')
+      .not('completed_at', 'is', null)
+      .order('completed_at', ascending: false)
+      .limit(10);
+
   final List<dynamic> commentsData = commentsResponse as List<dynamic>;
   final List<dynamic> tasksData = tasksResponse as List<dynamic>;
+  final List<dynamic> completedData = completedResponse as List<dynamic>;
 
   final List<DashboardActivityItem> items = [];
 
@@ -89,6 +100,23 @@ final recentActivityProvider = FutureProvider.autoDispose<List<DashboardActivity
       taskTitle: taskTitle,
       taskId: json['id']?.toString() ?? '',
       authorName: profileMap?['display_name']?.toString() ?? 'System',
+    ));
+  }
+
+  // Map completed tasks
+  for (final json in completedData) {
+    final profileMap = json['assignee'] as Map<String, dynamic>?;
+    final taskTitle = json['title']?.toString() ?? 'Bez tytułu';
+    
+    items.add(DashboardActivityItem(
+      id: json['id']?.toString() ?? '',
+      type: ActivityType.completedTask,
+      title: 'Ukończono zadanie',
+      content: taskTitle,
+      createdAt: DateTime.tryParse(json['completed_at']?.toString() ?? '') ?? DateTime.now(),
+      taskTitle: taskTitle,
+      taskId: json['id']?.toString() ?? '',
+      authorName: profileMap?['display_name']?.toString() ?? 'Pracownik',
     ));
   }
 
@@ -559,6 +587,29 @@ class DashboardScreen extends ConsumerWidget {
                       itemBuilder: (context, idx) {
                         final activity = activities[idx];
                         final isComment = activity.type == ActivityType.comment;
+                        final isCompleted = activity.type == ActivityType.completedTask;
+                        
+                        Color iconBgColor;
+                        Color iconColor;
+                        IconData iconData;
+                        String verb;
+                        
+                        if (isComment) {
+                          iconBgColor = Colors.blue.withValues(alpha: 0.1);
+                          iconColor = Colors.blue;
+                          iconData = Icons.chat_bubble_outline_rounded;
+                          verb = ' dodał(a) komentarz:';
+                        } else if (isCompleted) {
+                          iconBgColor = Colors.green.withValues(alpha: 0.1);
+                          iconColor = Colors.green;
+                          iconData = Icons.check_circle_outline_rounded;
+                          verb = ' ukończył(a) zadanie:';
+                        } else {
+                          iconBgColor = Colors.purple.withValues(alpha: 0.1);
+                          iconColor = Colors.purple;
+                          iconData = Icons.playlist_add_rounded;
+                          verb = ' utworzył(a) zadanie:';
+                        }
                         
                         return InkWell(
                           onTap: () {
@@ -597,14 +648,12 @@ class DashboardScreen extends ConsumerWidget {
                                 Container(
                                   padding: const EdgeInsets.all(8),
                                   decoration: BoxDecoration(
-                                    color: isComment
-                                        ? Colors.blue.withValues(alpha: 0.1)
-                                        : Colors.purple.withValues(alpha: 0.1),
+                                    color: iconBgColor,
                                     shape: BoxShape.circle,
                                   ),
                                   child: Icon(
-                                    isComment ? Icons.chat_bubble_outline_rounded : Icons.playlist_add_rounded,
-                                    color: isComment ? Colors.blue : Colors.purple,
+                                    iconData,
+                                    color: iconColor,
                                     size: 18,
                                   ),
                                 ),
@@ -630,7 +679,7 @@ class DashboardScreen extends ConsumerWidget {
                                                     style: const TextStyle(fontWeight: FontWeight.bold),
                                                   ),
                                                   TextSpan(
-                                                    text: isComment ? ' dodał(a) komentarz:' : ' utworzył(a) zadanie:',
+                                                    text: verb,
                                                     style: TextStyle(color: theme.colorScheme.secondary.withValues(alpha: 0.8)),
                                                   ),
                                                 ],
