@@ -1,16 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/log_service.dart';
 import '../services/notification_service.dart';
+import '../providers/update_provider.dart';
 
-class DiagnosticsScreen extends StatefulWidget {
+class DiagnosticsScreen extends ConsumerStatefulWidget {
   const DiagnosticsScreen({super.key});
 
   @override
-  State<DiagnosticsScreen> createState() => _DiagnosticsScreenState();
+  ConsumerState<DiagnosticsScreen> createState() => _DiagnosticsScreenState();
 }
 
-class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
+class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
   final ScrollController _scrollController = ScrollController();
 
   @override
@@ -72,7 +74,7 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Info panel
+              // Info panel (Notifications status)
               Card(
                 color: theme.colorScheme.primary.withValues(alpha: 0.05),
                 child: Padding(
@@ -126,6 +128,89 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
                         label: const Text('Wyślij powiadomienie testowe'),
                       ),
                     ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              // App Update status card
+              Card(
+                color: theme.colorScheme.primary.withValues(alpha: 0.05),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Consumer(
+                    builder: (context, ref, child) {
+                      final updateState = ref.watch(updateProvider);
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Aktualizacje (GitHub):',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: updateState.hasUpdate ? Colors.green.shade100 : Colors.blue.shade100,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  updateState.hasUpdate ? 'Dostępna aktualizacja' : 'Najnowsza wersja',
+                                  style: TextStyle(
+                                    color: updateState.hasUpdate ? Colors.green.shade800 : Colors.blue.shade800,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text('Obecna wersja: ${updateState.currentVersion}'),
+                          Text('Wersja na GitHubie: ${updateState.latestVersion}'),
+                          if (updateState.error != null) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              'Błąd: ${updateState.error}',
+                              style: const TextStyle(color: Colors.red, fontSize: 12),
+                            ),
+                          ],
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  onPressed: updateState.isLoading
+                                      ? null
+                                      : () {
+                                          ref.read(updateProvider.notifier).checkForUpdates();
+                                        },
+                                  icon: const Icon(Icons.refresh_rounded, size: 18),
+                                  label: const Text('Sprawdź'),
+                                ),
+                              ),
+                              if (updateState.hasUpdate) ...[
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: ElevatedButton.icon(
+                                    onPressed: () {
+                                      ref.read(updateProvider.notifier).launchUpdateUrl();
+                                    },
+                                    icon: const Icon(Icons.download_rounded, size: 18),
+                                    label: const Text('Pobierz APK'),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ],
+                      );
+                    },
                   ),
                 ),
               ),

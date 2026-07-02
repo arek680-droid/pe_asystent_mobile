@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
+import '../services/log_service.dart';
 
 class UpdateState {
   final bool isLoading;
@@ -57,41 +58,50 @@ class UpdateNotifier extends StateNotifier<UpdateState> {
       final currentBuild = int.tryParse(packageInfo.buildNumber) ?? 0;
       final currentVersionName = packageInfo.version;
 
+      LogService().addLog('[Update] Sprawdzanie aktualizacji... Obecna wersja: $currentVersionName (Wersja $currentBuild)');
+
       // 2. Pobierz informacje o najnowszym wydaniu z API GitHuba
       final url = Uri.parse('https://api.github.com/repos/arek680-droid/pe_asystent_mobile/releases/latest');
+      LogService().addLog('[Update] Zapytanie do GitHub API: $url');
       final response = await http.get(url);
+
+      LogService().addLog('[Update] GitHub API odpowiedź status: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
         final tagName = data['tag_name'] as String? ?? 'v0'; // np. "v5"
+        LogService().addLog('[Update] Najnowsze wydanie na GitHubie: $tagName');
         
         // Wyciągamy numer z tagu (np. "v5" -> 5)
         final latestBuild = int.tryParse(tagName.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+        LogService().addLog('[Update] Wyodrębniony numer build: $latestBuild');
 
         // Stały link do pobrania najnowszego APK
         final apkUrl = 'https://github.com/arek680-droid/pe_asystent_mobile/releases/latest/download/app-debug.apk';
 
         // 3. Porównaj numery budowania
         final hasUpdate = latestBuild > currentBuild;
+        LogService().addLog('[Update] Porównanie: najnowszy $latestBuild > obecny $currentBuild -> hasUpdate=$hasUpdate');
 
         state = UpdateState(
           isLoading: false,
           hasUpdate: hasUpdate,
           currentVersion: '$currentVersionName (Wersja $currentBuild)',
-          latestVersion: 'Wersja $latestBuild',
+          latestVersion: 'Wersja $latestBuild ($tagName)',
           apkUrl: apkUrl,
         );
       } else {
-        // Czasami przy pierwszym uruchomieniu nie ma jeszcze żadnego release na GitHubie
+        LogService().addLog('[Update] Brak wydań na GitHubie lub błąd API (status ${response.statusCode})');
         state = UpdateState(
           isLoading: false,
           hasUpdate: false,
           currentVersion: '$currentVersionName (Wersja $currentBuild)',
-          latestVersion: 'Brak wydań na GitHub',
+          latestVersion: 'Brak wydań na GitHub (Status ${response.statusCode})',
           apkUrl: '',
         );
       }
     } catch (e) {
+      LogService().addLog('[Update] ERROR podczas sprawdzania aktualizacji: $e');
       state = state.copyWith(
         isLoading: false,
         error: e.toString(),
