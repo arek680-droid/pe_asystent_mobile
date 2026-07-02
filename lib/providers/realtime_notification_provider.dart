@@ -31,10 +31,7 @@ final realtimeNotificationProvider = Provider<void>((ref) {
 
           final newRecord = payload.newRecord;
           final title = newRecord['title'] as String? ?? 'Nowe zadanie';
-          final assignedTo = newRecord['assigned_to'] as String?;
           final creatorId = newRecord['created_by'] as String?;
-
-          LogService().addLog('[RealtimeNotifications] Task creator: $creatorId, assigned_to: $assignedTo, current user: ${user.id}');
 
           // Ignore if user is the creator
           if (creatorId == user.id) {
@@ -42,17 +39,12 @@ final realtimeNotificationProvider = Provider<void>((ref) {
             return;
           }
 
-          // Notify only if assigned to this user OR unassigned
-          if (assignedTo == null || assignedTo.isEmpty || assignedTo == user.id) {
-            LogService().addLog('[RealtimeNotifications] Showing task notification: "$title"');
-            notificationService.showNotification(
-              id: DateTime.now().millisecondsSinceEpoch.remainder(100000),
-              title: 'Nowe zadanie 📋',
-              body: title,
-            );
-          } else {
-            LogService().addLog('[RealtimeNotifications] Skipping task notification: Assigned to another user: $assignedTo');
-          }
+          LogService().addLog('[RealtimeNotifications] Showing task notification: "$title"');
+          notificationService.showNotification(
+            id: DateTime.now().millisecondsSinceEpoch.remainder(100000),
+            title: 'Nowe zadanie 📋',
+            body: title,
+          );
         },
       )
       .subscribe((status, [error]) {
@@ -75,8 +67,6 @@ final realtimeNotificationProvider = Provider<void>((ref) {
           final taskId = newRecord['task_id'] as String?;
           final authorId = newRecord['user_id'] as String?;
 
-          LogService().addLog('[RealtimeNotifications] Comment author: $authorId, current user: ${user.id}');
-
           // Ignore if user is the author
           if (authorId == user.id) {
             LogService().addLog('[RealtimeNotifications] Skipping comment notification: User is the author');
@@ -87,31 +77,21 @@ final realtimeNotificationProvider = Provider<void>((ref) {
             try {
               final taskData = await client
                   .from('project_tasks')
-                  .select('title, assigned_to, created_by')
+                  .select('title')
                   .eq('id', taskId)
                   .maybeSingle();
 
               LogService().addLog('[RealtimeNotifications] Task data for comment: $taskData');
 
-              if (taskData != null) {
-                final taskTitle = taskData['title'] as String? ?? 'Zadanie';
-                final assignedTo = taskData['assigned_to'] as String?;
-                final createdBy = taskData['created_by'] as String?;
+              final taskTitle = taskData != null ? (taskData['title'] as String?) : null;
+              final displayTitle = taskTitle != null ? 'w: $taskTitle' : '';
 
-                if (assignedTo == null ||
-                    assignedTo.isEmpty ||
-                    assignedTo == user.id ||
-                    createdBy == user.id) {
-                  LogService().addLog('[RealtimeNotifications] Showing comment notification for task: "$taskTitle"');
-                  notificationService.showNotification(
-                    id: DateTime.now().millisecondsSinceEpoch.remainder(100000),
-                    title: 'Nowy komentarz w: $taskTitle 💬',
-                    body: comment,
-                  );
-                } else {
-                  LogService().addLog('[RealtimeNotifications] Skipping comment notification: Task not created by or assigned to user');
-                }
-              }
+              LogService().addLog('[RealtimeNotifications] Showing comment notification: "$comment"');
+              notificationService.showNotification(
+                id: DateTime.now().millisecondsSinceEpoch.remainder(100000),
+                title: 'Nowy komentarz $displayTitle 💬',
+                body: comment,
+              );
             } catch (e) {
               LogService().addLog('[RealtimeNotifications] ERROR fetching task for comment: $e');
             }
