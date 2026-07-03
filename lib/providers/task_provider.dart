@@ -83,6 +83,35 @@ class TasksNotifier extends StateNotifier<AsyncValue<List<ProjectTask>>> {
           .update(updateData)
           .eq('id', task.id);
 
+      // Insert system comment for status change (except for on_hold, which is handled in UI with user reason)
+      final currentUser = Supabase.instance.client.auth.currentUser;
+      if (currentUser != null && newStatus != 'on_hold') {
+        String statusLabel = '';
+        switch (newStatus) {
+          case 'todo': statusLabel = 'Do zrobienia'; break;
+          case 'in_progress': statusLabel = 'W trakcie'; break;
+          case 'to_accept': statusLabel = 'Do akceptacji'; break;
+          case 'completed': statusLabel = 'Zakończone'; break;
+        }
+
+        String commentText = '[STATUS] Zmiana statusu na: $statusLabel';
+        if (newStatus == 'completed' && actualHours != null) {
+          final h = actualHours.toInt();
+          final m = ((actualHours - h) * 60).round();
+          commentText += ' (Czas pracy: ${h}h ${m}m)';
+        }
+
+        try {
+          await Supabase.instance.client.from('project_task_comments').insert({
+            'task_id': task.id,
+            'user_id': currentUser.id,
+            'comment': commentText,
+          });
+        } catch (_) {
+          // Fail silently to prevent status change from breaking if comment fails
+        }
+      }
+
       // Update local state
       state.whenData((tasks) {
         state = AsyncValue.data(

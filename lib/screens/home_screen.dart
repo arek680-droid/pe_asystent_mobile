@@ -14,6 +14,7 @@ import '../providers/settings_provider.dart';
 import '../providers/realtime_notification_provider.dart';
 import 'dashboard_screen.dart';
 import 'profile_screen.dart';
+import 'report_screen.dart';
 import 'task_detail_sheet.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -31,9 +32,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final List<Widget> screens = [
       DashboardScreen(
         onNavigateToTasks: () => setState(() => _currentIndex = 1),
-        onNavigateToProfile: () => setState(() => _currentIndex = 2),
+        onNavigateToProfile: () => setState(() => _currentIndex = 3),
       ),
       const TasksDashboard(),
+      const ReportScreen(),
       const ProfileScreen(),
     ];
 
@@ -74,6 +76,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               icon: Icon(Icons.check_circle_outline),
               activeIcon: Icon(Icons.check_circle),
               label: 'Zadania',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.analytics_outlined),
+              activeIcon: Icon(Icons.analytics),
+              label: 'Raport',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.person_outline),
