@@ -35,9 +35,15 @@ jobs:
 
       # 3.5 Utworzenie pliku konfiguracyjnego z GitHub Secrets
       - name: Create Supabase Config file
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
           mkdir -p lib/core
-          echo "class SupabaseConfig { static const String url = '${{ secrets.SUPABASE_URL }}'; static const String anonKey = '${{ secrets.SUPABASE_ANON_KEY }}'; }" > lib/core/supabase_client.dart
+          CLEAN_URL=$(echo "$SUPABASE_URL" | tr -d '\r\n ')
+          CLEAN_ANON=$(echo "$SUPABASE_ANON_KEY" | tr -d '\r\n ')
+          echo "class SupabaseConfig { static const String url = '$CLEAN_URL'; static const String anonKey = '$CLEAN_ANON'; }" > lib/core/supabase_client.dart
+
 
       # 4. Pobranie bibliotek projektu
       - name: Install dependencies
