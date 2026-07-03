@@ -693,6 +693,14 @@ class TaskList extends StatelessWidget {
     );
   }
 
+  String _formatShortDate(DateTime date) {
+    const months = [
+      'sty', 'lut', 'mar', 'kwi', 'maj', 'cze',
+      'lip', 'sie', 'wrz', 'paź', 'lis', 'gru'
+    ];
+    return '${date.day} ${months[date.month - 1]}';
+  }
+
   Color _getPriorityColor(String priority) {
     switch (priority) {
       case 'critical':
@@ -940,10 +948,36 @@ class TaskList extends StatelessWidget {
                                      shape: BoxShape.circle,
                                    ),
                                  ),
-                                 const SizedBox(width: 8),
-                                 _buildDaysBadge(task.createdAt!, theme),
-                               ],
-                               const Spacer(),
+                                  const SizedBox(width: 8),
+                                  _buildDaysBadge(task.createdAt!, theme),
+                                ],
+                                if (task.dueDate != null) ...[
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    width: 4,
+                                    height: 4,
+                                    decoration: BoxDecoration(
+                                      color: theme.colorScheme.secondary.withValues(alpha: 0.3),
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Icon(
+                                    Icons.calendar_today_outlined,
+                                    size: 10,
+                                    color: theme.colorScheme.secondary.withValues(alpha: 0.6),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    _formatShortDate(task.dueDate!).toUpperCase(),
+                                    style: GoogleFonts.inter(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: theme.colorScheme.secondary.withValues(alpha: 0.8),
+                                    ),
+                                  ),
+                                ],
+                                const Spacer(),
                               // Status Badge
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),

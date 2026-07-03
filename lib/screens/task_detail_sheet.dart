@@ -53,6 +53,14 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
     }
   }
 
+  String _formatLongDate(DateTime date) {
+    const months = [
+      'sty', 'lut', 'mar', 'kwi', 'maj', 'cze',
+      'lip', 'sie', 'wrz', 'paź', 'lis', 'gru'
+    ];
+    return '${date.day} ${months[date.month - 1]} ${date.year}';
+  }
+
   void _showCommentsBottomSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -243,6 +251,36 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
                               ),
                             ),
                           ),
+                          if (widget.task.dueDate != null) ...[
+                            const SizedBox(width: 8),
+                            // Deadline Badge
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.secondary.withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.calendar_today_outlined,
+                                    size: 11,
+                                    color: theme.colorScheme.secondary,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    _formatLongDate(widget.task.dueDate!).toUpperCase(),
+                                    style: GoogleFonts.inter(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: theme.colorScheme.secondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                       const SizedBox(height: 16),
