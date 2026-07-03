@@ -39,11 +39,20 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
-          mkdir -p lib/core
-          CLEAN_URL=$(echo "$SUPABASE_URL" | tr -d '\r\n ')
-          CLEAN_ANON=$(echo "$SUPABASE_ANON_KEY" | tr -d '\r\n ')
-          echo "class SupabaseConfig { static const String url = '$CLEAN_URL'; static const String anonKey = '$CLEAN_ANON'; }" > lib/core/supabase_client.dart
-
+          python -c "
+          import os, sys
+          url = os.environ.get('SUPABASE_URL', '').strip()
+          anon = os.environ.get('SUPABASE_ANON_KEY', '').strip()
+          print('SUPABASE_URL length:', len(url))
+          print('SUPABASE_ANON_KEY length:', len(anon))
+          if not url or not anon:
+              print('ERROR: Supabase secrets are empty or not set in GitHub repository settings!')
+              sys.exit(1)
+          os.makedirs('lib/core', exist_ok=True)
+          with open('lib/core/supabase_client.dart', 'w', encoding='utf-8') as f:
+              f.write('class SupabaseConfig {\n  static const String url = \'' + url + '\';\n  static const String anonKey = \'' + anon + '\';\n}\n')
+          print('Successfully generated lib/core/supabase_client.dart')
+          "
 
       # 4. Pobranie bibliotek projektu
       - name: Install dependencies
