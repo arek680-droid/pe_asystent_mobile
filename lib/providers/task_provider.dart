@@ -62,24 +62,36 @@ class TasksNotifier extends StateNotifier<AsyncValue<List<ProjectTask>>> {
     }
   }
 
-  Future<bool> updateTaskStatus(ProjectTask task, String newStatus) async {
+  Future<bool> updateTaskStatus(ProjectTask task, String newStatus, {double? actualHours, DateTime? completedAt}) async {
     try {
-      final completedAt = newStatus == 'completed' ? DateTime.now() : null;
+      final finalCompletedAt = newStatus == 'completed' 
+          ? (completedAt ?? DateTime.now()) 
+          : null;
+      
+      final Map<String, dynamic> updateData = {
+        'status': newStatus,
+        'completed_at': finalCompletedAt?.toIso8601String(),
+      };
+      
+      if (newStatus == 'completed' && actualHours != null) {
+        updateData['actual_hours'] = actualHours;
+      }
       
       // Update status in Supabase
       await Supabase.instance.client
           .from('project_tasks')
-          .update({
-            'status': newStatus,
-            'completed_at': completedAt?.toIso8601String(),
-          })
+          .update(updateData)
           .eq('id', task.id);
 
       // Update local state
       state.whenData((tasks) {
         state = AsyncValue.data(
           tasks.map((t) => t.id == task.id 
-              ? t.copyWith(status: newStatus, completedAt: completedAt) 
+              ? t.copyWith(
+                  status: newStatus, 
+                  completedAt: finalCompletedAt,
+                  actualHours: newStatus == 'completed' ? (actualHours ?? t.actualHours) : t.actualHours,
+                ) 
               : t).toList(),
         );
       });
