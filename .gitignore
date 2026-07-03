@@ -44,5 +44,5 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# Supabase Configuration
-/lib/core/supabase_client.dart
+# Supabase credentials (security)
+lib/core/supabase_client.dart
