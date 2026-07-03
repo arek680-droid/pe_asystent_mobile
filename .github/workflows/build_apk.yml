@@ -33,6 +33,15 @@ jobs:
           channel: 'stable'
           cache: true
 
+      # 3.5. Utworzenie pliku konfiguracyjnego z GitHub Secrets
+      - name: Create Supabase Config
+        run: |
+          mkdir -p lib/core
+          echo "class SupabaseConfig {" > lib/core/supabase_client.dart
+          echo "  static const String url = '${{ secrets.SUPABASE_URL }}';" >> lib/core/supabase_client.dart
+          echo "  static const String anonKey = '${{ secrets.SUPABASE_ANON_KEY }}';" >> lib/core/supabase_client.dart
+          echo "}" >> lib/core/supabase_client.dart
+
       # 4. Pobranie bibliotek projektu
       - name: Install dependencies
         run: flutter pub get
