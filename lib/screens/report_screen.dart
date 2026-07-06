@@ -383,7 +383,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
                             if (activeReports.isNotEmpty) ...[
                               SliverToBoxAdapter(
                                 child: Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                                  padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),
                                   child: Text(
                                     'AKTYWNI PRACOWNICY',
                                     style: GoogleFonts.inter(
@@ -399,7 +399,19 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
                                 delegate: SliverChildBuilderDelegate(
                                   (context, index) {
                                     final report = activeReports[index];
-                                    return _buildEmployeeCard(context, report, true);
+                                    return Column(
+                                      children: [
+                                        _buildSlackStyleEmployeeBlock(context, report),
+                                        if (index < activeReports.length - 1)
+                                          Padding(
+                                            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                                            child: Divider(
+                                              height: 1,
+                                              color: theme.colorScheme.secondary.withValues(alpha: 0.1),
+                                            ),
+                                          ),
+                                      ],
+                                    );
                                   },
                                   childCount: activeReports.length,
                                 ),
@@ -412,7 +424,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
                                 child: Padding(
                                   padding: const EdgeInsets.fromLTRB(16.0, 24.0, 16.0, 8.0),
                                   child: Text(
-                                    'BRAK AKTYWNOŚCI',
+                                    'BRAK AKTYWNOŚCI W TYM DNIU',
                                     style: GoogleFonts.inter(
                                       fontSize: 11,
                                       fontWeight: FontWeight.bold,
@@ -422,13 +434,32 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
                                   ),
                                 ),
                               ),
-                              SliverList(
-                                delegate: SliverChildBuilderDelegate(
-                                  (context, index) {
-                                    final report = inactiveReports[index];
-                                    return _buildEmployeeCard(context, report, false);
-                                  },
-                                  childCount: inactiveReports.length,
+                              SliverToBoxAdapter(
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                                  child: Wrap(
+                                    spacing: 8,
+                                    runSpacing: 8,
+                                    children: inactiveReports.map((report) {
+                                      final initials = _getInitials(report.userName);
+                                      final avatarColor = _getAvatarBgColor(report.userName);
+                                      return Chip(
+                                        avatar: CircleAvatar(
+                                          backgroundColor: avatarColor,
+                                          child: Text(
+                                            initials,
+                                            style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold),
+                                          ),
+                                        ),
+                                        label: Text(
+                                          report.userName,
+                                          style: GoogleFonts.inter(fontSize: 12),
+                                        ),
+                                        backgroundColor: theme.colorScheme.surface,
+                                        side: BorderSide(color: theme.colorScheme.secondary.withValues(alpha: 0.1)),
+                                      );
+                                    }).toList(),
+                                  ),
                                 ),
                               ),
                             ],
@@ -499,140 +530,169 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
     );
   }
 
-  Widget _buildEmployeeCard(BuildContext context, EmployeeReport report, bool hasActivity) {
+  Widget _buildSlackStyleEmployeeBlock(BuildContext context, EmployeeReport report) {
     final theme = Theme.of(context);
     final avatarColor = _getAvatarBgColor(report.userName);
     final initials = _getInitials(report.userName);
 
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: theme.colorScheme.secondary.withValues(alpha: 0.1)),
-      ),
-      child: ExpansionTile(
-        key: PageStorageKey<String>(report.userId),
-        shape: const Border(), // Removes division borders
-        leading: CircleAvatar(
-          backgroundColor: avatarColor,
-          radius: 20,
-          child: Text(
-            initials,
-            style: GoogleFonts.inter(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
+    // Group activities by task ID to form a clean list
+    final Map<String, TaskActivitySummary> taskSummaries = {};
+    for (final act in report.activities) {
+      if (!taskSummaries.containsKey(act.taskId)) {
+        taskSummaries[act.taskId] = TaskActivitySummary(
+          taskId: act.taskId,
+          taskTitle: act.taskTitle,
+          latestTime: act.time,
+        );
+      }
+      
+      final summary = taskSummaries[act.taskId]!;
+      if (act.time.isAfter(summary.latestTime)) {
+        summary.latestTime = act.time;
+      }
+
+      if (act.description.startsWith('Zmienił status na: ')) {
+        final status = act.description.replaceFirst('Zmienił status na: ', '').toLowerCase();
+        summary.status = status;
+      } else if (act.description.startsWith('Wstrzymał zadanie (Powód: ')) {
+        final reason = act.description.replaceFirst('Wstrzymał zadanie (Powód: ', '').replaceAll(')', '');
+        summary.status = 'wstrzymano ($reason)';
+      } else if (act.description.startsWith('Dodał komentarz: "')) {
+        final commentVal = act.description.replaceFirst('Dodał komentarz: "', '').replaceAll('"', '');
+        summary.comment = commentVal;
+      }
+    }
+
+    final summariesList = taskSummaries.values.toList()
+      ..sort((a, b) => b.latestTime.compareTo(a.latestTime)); // sort by latest activity
+
+    final timeStr = summariesList.isNotEmpty 
+        ? '${summariesList.first.latestTime.hour.toString().padLeft(2, '0')}:${summariesList.first.latestTime.minute.toString().padLeft(2, '0')}'
+        : '';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CircleAvatar(
+            backgroundColor: avatarColor,
+            radius: 20,
+            child: Text(
+              initials,
+              style: GoogleFonts.inter(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
             ),
           ),
-        ),
-        title: Text(
-          report.userName,
-          style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 15),
-        ),
-        subtitle: Text(
-          hasActivity
-              ? 'Ukończono: ${report.completedTasksCount} zad. (${report.totalHours.toStringAsFixed(1)}h)'
-              : 'Brak odnotowanej aktywności',
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: hasActivity ? theme.colorScheme.primary : theme.colorScheme.secondary.withValues(alpha: 0.5),
-          ),
-        ),
-        children: [
-          if (hasActivity)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-              child: ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: report.activities.length,
-                itemBuilder: (context, idx) {
-                  final act = report.activities[idx];
-                  final isLast = idx == report.activities.length - 1;
-
-                  return Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Timeline graphical node
-                      Column(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              color: act.color.withValues(alpha: 0.1),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(act.icon, color: act.color, size: 16),
-                          ),
-                          if (!isLast)
-                            Container(
-                              width: 2,
-                              height: 36,
-                              color: theme.colorScheme.secondary.withValues(alpha: 0.15),
-                            ),
-                        ],
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Text(
+                      report.userName,
+                      style: GoogleFonts.inter(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                        color: theme.textTheme.bodyLarge?.color,
                       ),
-                      const SizedBox(width: 12),
-                      
-                      // Details of activity
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    ),
+                    if (timeStr.isNotEmpty) ...[
+                      const SizedBox(width: 8),
+                      Text(
+                        timeStr,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.secondary.withValues(alpha: 0.5),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 6),
+                ...List.generate(summariesList.length, (index) {
+                  final summary = summariesList[index];
+                  
+                  String statusText = '';
+                  Color statusColor = theme.colorScheme.secondary.withValues(alpha: 0.8);
+                  
+                  if (summary.status != null) {
+                    statusText = ' - ${summary.status}';
+                    if (summary.status!.contains('zakończone')) {
+                      statusColor = Colors.green.shade600;
+                    } else if (summary.status!.contains('w trakcie')) {
+                      statusColor = Colors.blue.shade600;
+                    } else if (summary.status!.contains('wstrzymano')) {
+                      statusColor = Colors.orange.shade600;
+                    } else if (summary.status!.contains('do akceptacji')) {
+                      statusColor = Colors.purple.shade600;
+                    }
+                  } else if (summary.comment != null) {
+                    statusText = ' - skomentowano: "${summary.comment}"';
+                    statusColor = theme.colorScheme.secondary.withValues(alpha: 0.6);
+                  }
+
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${index + 1}. ',
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: theme.textTheme.bodyLarge?.color?.withValues(alpha: 0.8),
+                          ),
+                        ),
+                        Expanded(
+                          child: RichText(
+                            text: TextSpan(
+                              style: GoogleFonts.inter(
+                                fontSize: 13,
+                                color: theme.textTheme.bodyLarge?.color,
+                              ),
                               children: [
-                                Expanded(
+                                WidgetSpan(
+                                  alignment: PlaceholderAlignment.baseline,
+                                  baseline: TextBaseline.alphabetic,
                                   child: GestureDetector(
-                                    onTap: () => _openTaskDetails(context, act.taskId),
+                                    onTap: () => _openTaskDetails(context, summary.taskId),
                                     child: Text(
-                                      act.taskTitle,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: GoogleFonts.inter(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 13,
+                                      summary.taskTitle,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w500,
                                         color: theme.colorScheme.primary,
                                         decoration: TextDecoration.underline,
                                       ),
                                     ),
                                   ),
                                 ),
-                                Text(
-                                  act.timeString,
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: theme.colorScheme.secondary.withValues(alpha: 0.5),
-                                    fontWeight: FontWeight.bold,
+                                TextSpan(
+                                  text: statusText,
+                                  style: TextStyle(
+                                    color: statusColor,
+                                    fontWeight: summary.status != null ? FontWeight.bold : FontWeight.normal,
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 2),
-                            Text(
-                              act.description,
-                              style: theme.textTheme.bodyMedium?.copyWith(fontSize: 13),
-                            ),
-                            const SizedBox(height: 16), // space between elements
-                          ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   );
-                },
-              ),
-            )
-          else
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Text(
-                'Pracownik nie wykonywał żadnych operacji w tym dniu.',
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  fontStyle: FontStyle.italic,
-                  color: theme.colorScheme.secondary.withValues(alpha: 0.5),
-                ),
-              ),
+                }),
+              ],
             ),
+          ),
         ],
       ),
     );
@@ -672,5 +732,21 @@ class ReportActivity {
     required this.description,
     required this.icon,
     required this.color,
+  });
+}
+
+class TaskActivitySummary {
+  final String taskId;
+  final String taskTitle;
+  DateTime latestTime;
+  String? status;
+  String? comment;
+
+  TaskActivitySummary({
+    required this.taskId,
+    required this.taskTitle,
+    required this.latestTime,
+    this.status,
+    this.comment,
   });
 }
