@@ -57,18 +57,18 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
     // 2. Fetch comments created on this day (contains status changes and normal comments)
     final commentsResponse = await Supabase.instance.client
         .from('project_task_comments')
-        .select('id, comment, created_at, task_id, project_tasks(title), user_id')
-        .gte('created_at', startOfDay.toIso8601String())
-        .lte('created_at', endOfDay.toIso8601String())
+        .select('id, comment, created_at, task_id, project_tasks(title), user_id, user_profiles:user_id(display_name)')
+        .gte('created_at', startOfDay.toUtc().toIso8601String())
+        .lte('created_at', endOfDay.toUtc().toIso8601String())
         .order('created_at', ascending: true);
 
     // 3. Fetch completed tasks with completion time on this day to calculate hours
     final completedResponse = await Supabase.instance.client
         .from('project_tasks')
-        .select('id, title, completed_at, actual_hours, assigned_to')
+        .select('id, title, completed_at, actual_hours, assigned_to, assignee:user_profiles!project_tasks_assigned_to_fkey(display_name)')
         .eq('status', 'completed')
-        .gte('completed_at', startOfDay.toIso8601String())
-        .lte('completed_at', endOfDay.toIso8601String());
+        .gte('completed_at', startOfDay.toUtc().toIso8601String())
+        .lte('completed_at', endOfDay.toUtc().toIso8601String());
 
     final List<dynamic> profilesData = (profilesResponse as List<dynamic>?) ?? [];
     final List<dynamic> commentsData = (commentsResponse as List<dynamic>?) ?? [];
@@ -76,7 +76,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
 
     final Map<String, EmployeeReport> reports = {};
 
-    // Initialize report maps for all users
+    // Initialize report maps for all users from profiles
     for (final profileJson in profilesData) {
       final id = profileJson['id']?.toString() ?? '';
       final name = profileJson['display_name']?.toString() ?? 'Użytkownik';
@@ -89,22 +89,55 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
       );
     }
 
+    // Helper to dynamically get or create a report for a user
+    EmployeeReport getOrCreateReport(String id, Map<String, dynamic>? profileMap) {
+      if (reports.containsKey(id)) {
+        return reports[id]!;
+      }
+      String name = profileMap?['display_name']?.toString() ?? '';
+      if (name.isEmpty) {
+        final currentUser = Supabase.instance.client.auth.currentUser;
+        if (currentUser != null && currentUser.id == id) {
+          name = currentUser.email?.split('@')[0] ?? 'Ja';
+        } else {
+          name = 'Pracownik ($id)';
+        }
+      }
+      final newReport = EmployeeReport(
+        userId: id,
+        userName: name,
+        activities: [],
+        completedTasksCount: 0,
+        totalHours: 0.0,
+      );
+      reports[id] = newReport;
+      return newReport;
+    }
+
     // Process completed tasks metrics
     for (final taskJson in completedData) {
       final userId = taskJson['assigned_to']?.toString() ?? '';
-      if (reports.containsKey(userId)) {
-        reports[userId]!.completedTasksCount++;
-        reports[userId]!.totalHours += (taskJson['actual_hours'] as num?)?.toDouble() ?? 0.0;
-      }
+      if (userId.isEmpty) continue;
+
+      final assigneeProfile = taskJson['assignee'] as Map<String, dynamic>?;
+      final report = getOrCreateReport(userId, assigneeProfile);
+      report.completedTasksCount++;
+      report.totalHours += (taskJson['actual_hours'] as num?)?.toDouble() ?? 0.0;
     }
 
     // Process comments as activity entries
     for (final commentJson in commentsData) {
       final userId = commentJson['user_id']?.toString() ?? '';
-      if (!reports.containsKey(userId)) continue;
+      if (userId.isEmpty) continue;
+
+      final commentProfile = commentJson['user_profiles'] as Map<String, dynamic>?;
+      final report = getOrCreateReport(userId, commentProfile);
 
       final commentText = commentJson['comment']?.toString() ?? '';
-      final createdAt = DateTime.tryParse(commentJson['created_at']?.toString() ?? '') ?? DateTime.now();
+      // Parse created_at in local timezone for proper display time
+      final createdAtUtc = DateTime.tryParse(commentJson['created_at']?.toString() ?? '') ?? DateTime.now();
+      final createdAt = createdAtUtc.toLocal();
+      
       final taskMap = commentJson['project_tasks'] as Map<String, dynamic>?;
       final taskTitle = taskMap?['title']?.toString() ?? 'Zadanie';
       final taskId = commentJson['task_id']?.toString() ?? '';
@@ -146,7 +179,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
       // Format time in Polish local time
       final timeStr = '${createdAt.hour.toString().padLeft(2, '0')}:${createdAt.minute.toString().padLeft(2, '0')}';
 
-      reports[userId]!.activities.add(ReportActivity(
+      report.activities.add(ReportActivity(
         time: createdAt,
         timeString: timeStr,
         taskId: taskId,
