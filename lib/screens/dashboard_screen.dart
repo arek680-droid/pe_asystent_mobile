@@ -7,6 +7,10 @@ import '../providers/profile_provider.dart';
 import '../providers/task_provider.dart';
 import '../providers/user_stats_provider.dart';
 import '../providers/settings_provider.dart';
+import '../providers/project_provider.dart';
+import '../models/project_task.dart';
+import '../models/project.dart';
+import '../widgets/completion_dialog.dart';
 import 'task_detail_sheet.dart';
 
 enum ActivityType {
@@ -308,6 +312,21 @@ class DashboardScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 24),
                 ],
+
+                // 2.5. Zadania w trakcie (Current Focus)
+                tasksAsync.when(
+                  data: (tasks) {
+                    final myInProgressTasks = tasks.where((t) => t.assignedTo == user?.id && t.status == 'in_progress').toList();
+                    return Column(
+                      children: [
+                        _buildInProgressSection(context, ref, myInProgressTasks, tasks, user?.id),
+                        const SizedBox(height: 24),
+                      ],
+                    );
+                  },
+                  loading: () => const SizedBox(height: 50, child: Center(child: LinearProgressIndicator())),
+                  error: (err, stack) => const SizedBox(),
+                ),
 
                 // 3. Task Overview Grid & Completion Circle
                 Text(
@@ -810,5 +829,445 @@ class DashboardScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Widget _buildInProgressSection(
+    BuildContext context, 
+    WidgetRef ref, 
+    List<ProjectTask> inProgressTasks, 
+    List<ProjectTask> allTasks,
+    String? currentUserId,
+  ) {
+    final theme = Theme.of(context);
+    final projectsList = ref.watch(projectsProvider).value ?? [];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Aktualne Zadanie',
+          style: GoogleFonts.outfit(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: theme.colorScheme.onSurface,
+          ),
+        ),
+        const SizedBox(height: 12),
+        if (inProgressTasks.isNotEmpty)
+          ...inProgressTasks.map((task) {
+            final project = projectsList.firstWhere(
+              (p) => p.id == task.projectId, 
+              orElse: () => Project(id: '', name: '', description: ''),
+            );
+            final projectName = project.name.isNotEmpty ? project.name : 'Bez projektu (wrzutka)';
+
+            return Card(
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: theme.colorScheme.secondary.withValues(alpha: 0.1)),
+              ),
+              color: theme.colorScheme.surface,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withValues(alpha: 0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.play_arrow_rounded, color: Colors.blue, size: 24),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              GestureDetector(
+                                onTap: () {
+                                  showModalBottomSheet(
+                                    context: context,
+                                    isScrollControlled: true,
+                                    backgroundColor: Colors.transparent,
+                                    builder: (context) => TaskDetailSheet(task: task),
+                                  );
+                                },
+                                child: Text(
+                                  task.title,
+                                  style: GoogleFonts.inter(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                    color: theme.colorScheme.primary,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                projectName,
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  color: theme.colorScheme.secondary.withValues(alpha: 0.6),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: () => _handlePauseTask(context, ref, task),
+                          icon: const Icon(Icons.pause_rounded, size: 18),
+                          label: const Text('Wstrzymaj'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.orange.shade800,
+                            side: BorderSide(color: Colors.orange.shade600.withValues(alpha: 0.5)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        ElevatedButton.icon(
+                          onPressed: () => _handleCompleteTask(context, ref, task),
+                          icon: const Icon(Icons.check_rounded, size: 18),
+                          label: const Text('Zakończ'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green.shade700,
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          })
+        else
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: theme.colorScheme.secondary.withValues(alpha: 0.1),
+              ),
+            ),
+            child: Column(
+              children: [
+                Icon(
+                  Icons.assignment_turned_in_outlined, 
+                  size: 40, 
+                  color: theme.colorScheme.secondary.withValues(alpha: 0.4),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Brak aktywnych zadań w toku',
+                  style: GoogleFonts.inter(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Rozpocznij jedno z przypisanych zadań lub wybierz z listy.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: theme.colorScheme.secondary.withValues(alpha: 0.5),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: () => _showChooseTaskBottomSheet(context, ref, allTasks, currentUserId),
+                  icon: const Icon(Icons.explore_rounded, size: 18),
+                  label: const Text('Co robimy dzisiaj? 🎯'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: theme.colorScheme.primary,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  void _showChooseTaskBottomSheet(
+    BuildContext context, 
+    WidgetRef ref, 
+    List<ProjectTask> allTasks, 
+    String? currentUserId,
+  ) {
+    final theme = Theme.of(context);
+    final projectsList = ref.watch(projectsProvider).value ?? [];
+
+    final myTodoTasks = allTasks.where((t) => t.assignedTo == currentUserId && t.status == 'todo').toList();
+    final unassignedActiveTasks = allTasks.where((t) => (t.assignedTo == null || t.assignedTo!.isEmpty) && t.status != 'completed').toList();
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: theme.scaffoldBackgroundColor,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.6,
+          maxChildSize: 0.9,
+          minChildSize: 0.4,
+          expand: false,
+          builder: (context, scrollController) {
+            return SingleChildScrollView(
+              controller: scrollController,
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.secondary.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Co robisz dzisiaj? 🎯',
+                    style: GoogleFonts.outfit(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 20),
+
+                  if (myTodoTasks.isEmpty && unassignedActiveTasks.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 32.0),
+                      child: Text(
+                        'Brak dostępnych zadań do rozpoczęcia.\nStwórz nowe zadanie w zakładce Zadania.',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.inter(
+                          color: theme.colorScheme.secondary.withValues(alpha: 0.6),
+                        ),
+                      ),
+                    ),
+
+                  if (myTodoTasks.isNotEmpty) ...[
+                    Text(
+                      'TWOJE ZADANIA (DO ZROBIENIA)',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: theme.colorScheme.secondary.withValues(alpha: 0.6),
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    ...myTodoTasks.map((task) => _buildTaskSelectionItem(context, ref, task, projectsList, false)),
+                    const SizedBox(height: 24),
+                  ],
+
+                  if (unassignedActiveTasks.isNotEmpty) ...[
+                    Text(
+                      'ZADANIA NIEPRZYPISANE',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: theme.colorScheme.secondary.withValues(alpha: 0.6),
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    ...unassignedActiveTasks.map((task) => _buildTaskSelectionItem(context, ref, task, projectsList, true)),
+                  ],
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildTaskSelectionItem(
+    BuildContext context, 
+    WidgetRef ref, 
+    ProjectTask task, 
+    List<Project> projects,
+    bool isUnassigned,
+  ) {
+    final theme = Theme.of(context);
+    final project = projects.firstWhere(
+      (p) => p.id == task.projectId, 
+      orElse: () => Project(id: '', name: '', description: ''),
+    );
+    final projectName = project.name.isNotEmpty ? project.name : 'Bez projektu (wrzutka)';
+
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: theme.colorScheme.secondary.withValues(alpha: 0.08)),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        title: Text(
+          task.title,
+          style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 14),
+        ),
+        subtitle: Text(
+          projectName,
+          style: GoogleFonts.inter(fontSize: 12, color: theme.colorScheme.secondary.withValues(alpha: 0.6)),
+        ),
+        trailing: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.primary.withValues(alpha: 0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(Icons.play_arrow_rounded, color: theme.colorScheme.primary, size: 20),
+        ),
+        onTap: () async {
+          Navigator.of(context).pop(); // Close bottom sheet
+          
+          if (isUnassigned) {
+            await ref.read(tasksProvider.notifier).assignTaskToSelf(task);
+          }
+          
+          await ref.read(tasksProvider.notifier).updateTaskStatus(task, 'in_progress');
+          ref.invalidate(recentActivityProvider);
+
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Rozpoczęto pracę nad zadaniem: ${task.title}'),
+                behavior: SnackBarBehavior.floating,
+                backgroundColor: theme.colorScheme.primary,
+              ),
+            );
+          }
+        },
+      ),
+    );
+  }
+
+  Future<void> _handlePauseTask(BuildContext context, WidgetRef ref, ProjectTask task) async {
+    final reason = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        final controller = TextEditingController();
+        final formKey = GlobalKey<FormState>();
+        final dialogTheme = Theme.of(context);
+        return AlertDialog(
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Powód wstrzymania'),
+              IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ],
+          ),
+          content: Form(
+            key: formKey,
+            child: TextFormField(
+              controller: controller,
+              decoration: const InputDecoration(
+                labelText: 'Wpisz powód wstrzymania...',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 3,
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Wpisanie powodu jest wymagane';
+                }
+                return null;
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('Anuluj', style: TextStyle(color: dialogTheme.colorScheme.secondary)),
+            ),
+            TextButton(
+              onPressed: () {
+                if (formKey.currentState?.validate() ?? false) {
+                  Navigator.of(context).pop(controller.text.trim());
+                }
+              },
+              child: Text('Zatwierdź', style: TextStyle(color: dialogTheme.colorScheme.primary, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (reason == null || reason.trim().isEmpty) return;
+
+    final currentUser = Supabase.instance.client.auth.currentUser;
+    if (currentUser != null) {
+      try {
+        await Supabase.instance.client.from('project_task_comments').insert({
+          'task_id': task.id,
+          'user_id': currentUser.id,
+          'comment': '[WSTRZYMANO] $reason',
+        });
+      } catch (_) {
+        // Fail silently
+      }
+    }
+
+    await ref.read(tasksProvider.notifier).updateTaskStatus(task, 'on_hold');
+    ref.invalidate(recentActivityProvider);
+  }
+
+  Future<void> _handleCompleteTask(BuildContext context, WidgetRef ref, ProjectTask task) async {
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => CompletionDialog(task: task),
+    );
+
+    if (result == null) return;
+
+    final actualHours = result['actualHours'] as double?;
+    final completedAt = result['completedAt'] as DateTime?;
+
+    await ref.read(tasksProvider.notifier).updateTaskStatus(
+      task, 
+      'completed',
+      actualHours: actualHours,
+      completedAt: completedAt,
+    );
+    ref.invalidate(recentActivityProvider);
   }
 }
