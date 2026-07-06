@@ -177,6 +177,47 @@ class TasksNotifier extends StateNotifier<AsyncValue<List<ProjectTask>>> {
     }
   }
 
+  Future<void> logWorkHours(ProjectTask task, double hours) async {
+    try {
+      final user = _ref.read(authProvider);
+      if (user == null) return;
+
+      final newTotalHours = task.actualHours + hours;
+
+      // Update in Supabase
+      await Supabase.instance.client
+          .from('project_tasks')
+          .update({'actual_hours': newTotalHours})
+          .eq('id', task.id);
+
+      // Insert system comment for logged time
+      final h = hours.toInt();
+      final m = ((hours - h) * 60).round();
+      
+      final totalH = newTotalHours.toInt();
+      final totalM = ((newTotalHours - totalH) * 60).round();
+
+      final commentText = '[LOG] Dodano czas pracy: ${h}h ${m}m (Łącznie: ${totalH}h ${totalM}m)';
+
+      await Supabase.instance.client.from('project_task_comments').insert({
+        'task_id': task.id,
+        'user_id': user.id,
+        'comment': commentText,
+      });
+
+      // Update local state
+      state.whenData((tasks) {
+        state = AsyncValue.data(
+          tasks.map((t) => t.id == task.id 
+              ? t.copyWith(actualHours: newTotalHours) 
+              : t).toList(),
+        );
+      });
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<void> createTask({
     required String title,
     required String description,

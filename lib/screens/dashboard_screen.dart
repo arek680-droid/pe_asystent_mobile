@@ -11,6 +11,7 @@ import '../providers/project_provider.dart';
 import '../models/project_task.dart';
 import '../models/project.dart';
 import '../widgets/completion_dialog.dart';
+import '../widgets/log_hours_dialog.dart';
 import 'task_detail_sheet.dart';
 
 enum ActivityType {
@@ -922,9 +923,22 @@ class DashboardScreen extends ConsumerWidget {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      alignment: WrapAlignment.end,
                       children: [
+                        OutlinedButton.icon(
+                          onPressed: () => _handleLogTimeTask(context, ref, task),
+                          icon: const Icon(Icons.more_time_rounded, size: 18),
+                          label: const Text('Czas pracy'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: theme.colorScheme.primary,
+                            side: BorderSide(color: theme.colorScheme.primary.withValues(alpha: 0.5)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          ),
+                        ),
                         OutlinedButton.icon(
                           onPressed: () => _handlePauseTask(context, ref, task),
                           icon: const Icon(Icons.pause_rounded, size: 18),
@@ -933,10 +947,9 @@ class DashboardScreen extends ConsumerWidget {
                             foregroundColor: Colors.orange.shade800,
                             side: BorderSide(color: Colors.orange.shade600.withValues(alpha: 0.5)),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           ),
                         ),
-                        const SizedBox(width: 12),
                         ElevatedButton.icon(
                           onPressed: () => _handleCompleteTask(context, ref, task),
                           icon: const Icon(Icons.check_rounded, size: 18),
@@ -946,7 +959,7 @@ class DashboardScreen extends ConsumerWidget {
                             foregroundColor: Colors.white,
                             elevation: 0,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           ),
                         ),
                       ],
@@ -993,16 +1006,35 @@ class DashboardScreen extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
-                ElevatedButton.icon(
-                  onPressed: () => _showChooseTaskBottomSheet(context, ref, allTasks, currentUserId),
-                  icon: const Icon(Icons.explore_rounded, size: 18),
-                  label: const Text('Co robimy dzisiaj? 🎯'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: theme.colorScheme.primary,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [theme.colorScheme.primary, theme.colorScheme.tertiary],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: theme.colorScheme.primary.withValues(alpha: 0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: ElevatedButton.icon(
+                    onPressed: () => _showChooseTaskBottomSheet(context, ref, allTasks, currentUserId),
+                    icon: const Icon(Icons.explore_rounded, size: 18, color: Colors.white),
+                    label: Text(
+                      'Co robimy dzisiaj? 🎯',
+                      style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: Colors.white),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
                   ),
                 ),
               ],
@@ -1269,5 +1301,30 @@ class DashboardScreen extends ConsumerWidget {
       completedAt: completedAt,
     );
     ref.invalidate(recentActivityProvider);
+  }
+
+  Future<void> _handleLogTimeTask(BuildContext context, WidgetRef ref, ProjectTask task) async {
+    final double? hours = await showDialog<double>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => LogHoursDialog(task: task),
+    );
+
+    if (hours == null || hours <= 0) return;
+
+    await ref.read(tasksProvider.notifier).logWorkHours(task, hours);
+    ref.invalidate(recentActivityProvider);
+
+    if (context.mounted) {
+      final h = hours.toInt();
+      final m = ((hours - h) * 60).round();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Zadeklarowano ${h}h ${m}m pracy nad zadaniem: ${task.title}'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.green.shade600,
+        ),
+      );
+    }
   }
 }

@@ -122,7 +122,6 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
       final assigneeProfile = taskJson['assignee'] as Map<String, dynamic>?;
       final report = getOrCreateReport(userId, assigneeProfile);
       report.completedTasksCount++;
-      report.totalHours += (taskJson['actual_hours'] as num?)?.toDouble() ?? 0.0;
     }
 
     // Process comments as activity entries
@@ -155,6 +154,15 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
         } else if (status.contains('Zakończone')) {
           icon = Icons.check_circle_rounded;
           color = Colors.green;
+          
+          if (status.contains('Czas pracy:')) {
+            final timeMatch = RegExp(r'Czas pracy:\s*(\d+)h\s*(\d+)m').firstMatch(status);
+            if (timeMatch != null) {
+              final h = double.tryParse(timeMatch.group(1) ?? '0') ?? 0.0;
+              final m = double.tryParse(timeMatch.group(2) ?? '0') ?? 0.0;
+              report.totalHours += h + (m / 60.0);
+            }
+          }
         } else if (status.contains('Do akceptacji')) {
           icon = Icons.fact_check_rounded;
           color = Colors.purple;
@@ -164,6 +172,18 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
         } else {
           icon = Icons.radio_button_unchecked;
           color = Colors.grey;
+        }
+      } else if (commentText.startsWith('[LOG] Dodano czas pracy: ')) {
+        final timePart = commentText.replaceFirst('[LOG] Dodano czas pracy: ', '').split(' (').first;
+        description = 'Zadeklarował czas pracy: $timePart';
+        icon = Icons.more_time_rounded;
+        color = Colors.blue.shade800;
+
+        final match = RegExp(r'(\d+)h\s*(\d+)m').firstMatch(timePart);
+        if (match != null) {
+          final h = double.tryParse(match.group(1) ?? '0') ?? 0.0;
+          final m = double.tryParse(match.group(2) ?? '0') ?? 0.0;
+          report.totalHours += h + (m / 60.0);
         }
       } else if (commentText.startsWith('[WSTRZYMANO] ')) {
         final reason = commentText.replaceFirst('[WSTRZYMANO] ', '');
