@@ -180,7 +180,7 @@ class TasksNotifier extends StateNotifier<AsyncValue<List<ProjectTask>>> {
   Future<void> createTask({
     required String title,
     required String description,
-    required String projectId,
+    required String? projectId,
     required String priority,
   }) async {
     try {

@@ -1163,12 +1163,6 @@ class _AddTaskBottomSheetState extends ConsumerState<AddTaskBottomSheet> {
 
   Future<void> _saveTask() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedProjectId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Wybierz projekt')),
-      );
-      return;
-    }
 
     setState(() {
       _isSaving = true;
@@ -1178,7 +1172,7 @@ class _AddTaskBottomSheetState extends ConsumerState<AddTaskBottomSheet> {
       await ref.read(tasksProvider.notifier).createTask(
             title: _titleController.text.trim(),
             description: _descController.text.trim(),
-            projectId: _selectedProjectId!,
+            projectId: _selectedProjectId,
             priority: _selectedPriority,
           );
       if (mounted) Navigator.of(context).pop();
@@ -1248,19 +1242,30 @@ class _AddTaskBottomSheetState extends ConsumerState<AddTaskBottomSheet> {
                     style: TextStyle(color: theme.colorScheme.error, fontSize: 13),
                   );
                 }
-                return DropdownButtonFormField<String>(
+                return DropdownButtonFormField<String?>(
                   isExpanded: true,
                   initialValue: _selectedProjectId,
-                  decoration: const InputDecoration(hintText: 'Wybierz projekt'),
-                  items: projects.map((p) {
-                    return DropdownMenuItem<String>(
-                      value: p.id,
+                  decoration: const InputDecoration(hintText: 'Wybierz projekt (opcjonalnie)'),
+                  items: [
+                    DropdownMenuItem<String?>(
+                      value: null,
                       child: Text(
-                        p.name,
-                        overflow: TextOverflow.ellipsis,
+                        'Bez projektu (wrzutka)',
+                        style: TextStyle(
+                          color: theme.colorScheme.secondary.withValues(alpha: 0.7),
+                        ),
                       ),
-                    );
-                  }).toList(),
+                    ),
+                    ...projects.map((p) {
+                      return DropdownMenuItem<String?>(
+                        value: p.id,
+                        child: Text(
+                          p.name,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      );
+                    }),
+                  ],
                   onChanged: (val) {
                     setState(() {
                       _selectedProjectId = val;
