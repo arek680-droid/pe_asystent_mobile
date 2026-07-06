@@ -73,8 +73,10 @@ class TasksNotifier extends StateNotifier<AsyncValue<List<ProjectTask>>> {
         'completed_at': finalCompletedAt?.toIso8601String(),
       };
       
+      double? finalActualHours;
       if (newStatus == 'completed' && actualHours != null) {
-        updateData['actual_hours'] = actualHours;
+        finalActualHours = task.actualHours + actualHours;
+        updateData['actual_hours'] = finalActualHours;
       }
       
       // Update status in Supabase
@@ -119,7 +121,7 @@ class TasksNotifier extends StateNotifier<AsyncValue<List<ProjectTask>>> {
               ? t.copyWith(
                   status: newStatus, 
                   completedAt: finalCompletedAt,
-                  actualHours: newStatus == 'completed' ? (actualHours ?? t.actualHours) : t.actualHours,
+                  actualHours: newStatus == 'completed' ? (finalActualHours ?? t.actualHours) : t.actualHours,
                 ) 
               : t).toList(),
         );

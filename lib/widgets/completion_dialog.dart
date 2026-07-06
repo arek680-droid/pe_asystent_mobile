@@ -19,16 +19,30 @@ class _CompletionDialogState extends State<CompletionDialog> {
   void initState() {
     super.initState();
     _selectedDateTime = DateTime.now();
-    final est = widget.task.estimatedHours;
-    if (est > 0) {
-      final hours = est.toInt();
-      final minutes = ((est - hours) * 60).round();
-      _hoursController.text = hours.toString();
-      _minutesController.text = minutes > 0 ? minutes.toString() : '0';
-    } else {
+    if (widget.task.actualHours > 0) {
       _hoursController.text = '0';
       _minutesController.text = '0';
+    } else {
+      final est = widget.task.estimatedHours;
+      if (est > 0) {
+        final hours = est.toInt();
+        final minutes = ((est - hours) * 60).round();
+        _hoursController.text = hours.toString();
+        _minutesController.text = minutes > 0 ? minutes.toString() : '0';
+      } else {
+        _hoursController.text = '0';
+        _minutesController.text = '0';
+      }
     }
+  }
+
+  String _formatHours(double total) {
+    final h = total.toInt();
+    final m = ((total - h) * 60).round();
+    if (h > 0) {
+      return '${h}h ${m}m';
+    }
+    return '${m}m';
   }
 
   @override
@@ -73,6 +87,7 @@ class _CompletionDialogState extends State<CompletionDialog> {
         '${_selectedDateTime.year} '
         '${_selectedDateTime.hour.toString().padLeft(2, '0')}:'
         '${_selectedDateTime.minute.toString().padLeft(2, '0')}';
+    final hasLoggedHours = widget.task.actualHours > 0;
 
     return AlertDialog(
       title: Row(
@@ -89,8 +104,35 @@ class _CompletionDialogState extends State<CompletionDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              if (hasLoggedHours) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline_rounded, size: 18, color: theme.colorScheme.primary),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'W trakcie pracy zadeklarowano już: ${_formatHours(widget.task.actualHours)}.',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.primary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
               Text(
-                'Wprowadź czas poświęcony na zadanie oraz faktyczną datę zakończenia.',
+                hasLoggedHours
+                    ? 'Wpisz dodatkowy czas poświęcony dzisiaj na ukończenie zadania.'
+                    : 'Wprowadź czas poświęcony na zadanie oraz faktyczną datę zakończenia.',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.secondary.withValues(alpha: 0.7),
                 ),

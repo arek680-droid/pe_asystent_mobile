@@ -604,6 +604,23 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
         summary.latestTime = act.time;
       }
 
+      if (act.description.startsWith('Zadeklarował czas pracy: ')) {
+        final timePart = act.description.replaceFirst('Zadeklarował czas pracy: ', '');
+        final match = RegExp(r'(\d+)h\s*(\d+)m').firstMatch(timePart);
+        if (match != null) {
+          final h = double.tryParse(match.group(1) ?? '0') ?? 0.0;
+          final m = double.tryParse(match.group(2) ?? '0') ?? 0.0;
+          summary.loggedHours += h + (m / 60.0);
+        }
+      } else if (act.description.contains('Czas pracy:')) {
+        final match = RegExp(r'Czas pracy:\s*(\d+)h\s*(\d+)m').firstMatch(act.description);
+        if (match != null) {
+          final h = double.tryParse(match.group(1) ?? '0') ?? 0.0;
+          final m = double.tryParse(match.group(2) ?? '0') ?? 0.0;
+          summary.loggedHours += h + (m / 60.0);
+        }
+      }
+
       if (act.description.startsWith('Zmienił status na: ')) {
         final status = act.description.replaceFirst('Zmienił status na: ', '').toLowerCase();
         summary.status = status;
@@ -692,6 +709,13 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
                     statusColor = theme.colorScheme.secondary.withValues(alpha: 0.6);
                   }
 
+                  String timeLoggedText = '';
+                  if (summary.loggedHours > 0) {
+                    final h = summary.loggedHours.toInt();
+                    final m = ((summary.loggedHours - h) * 60).round();
+                    timeLoggedText = ' (${h}h ${m}m)';
+                  }
+
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 4),
                     child: Row(
@@ -709,8 +733,8 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
                           child: RichText(
                             text: TextSpan(
                               style: GoogleFonts.inter(
-                                fontSize: 13,
-                                color: theme.textTheme.bodyLarge?.color,
+                                  fontSize: 13,
+                                  color: theme.textTheme.bodyLarge?.color,
                               ),
                               children: [
                                 WidgetSpan(
@@ -735,6 +759,14 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
                                     fontWeight: summary.status != null ? FontWeight.bold : FontWeight.normal,
                                   ),
                                 ),
+                                if (timeLoggedText.isNotEmpty)
+                                  TextSpan(
+                                    text: timeLoggedText,
+                                    style: TextStyle(
+                                      color: theme.colorScheme.primary,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                               ],
                             ),
                           ),
@@ -794,6 +826,7 @@ class TaskActivitySummary {
   DateTime latestTime;
   String? status;
   String? comment;
+  double loggedHours;
 
   TaskActivitySummary({
     required this.taskId,
@@ -801,5 +834,6 @@ class TaskActivitySummary {
     required this.latestTime,
     this.status,
     this.comment,
+    this.loggedHours = 0.0,
   });
 }
