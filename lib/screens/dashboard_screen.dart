@@ -870,20 +870,20 @@ class DashboardScreen extends ConsumerWidget {
               ),
               color: theme.colorScheme.surface,
               child: Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         Container(
-                          padding: const EdgeInsets.all(8),
+                          padding: const EdgeInsets.all(6),
                           decoration: BoxDecoration(
                             color: Colors.blue.withValues(alpha: 0.1),
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(Icons.play_arrow_rounded, color: Colors.blue, size: 24),
+                          child: const Icon(Icons.play_arrow_rounded, color: Colors.blue, size: 20),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -909,7 +909,7 @@ class DashboardScreen extends ConsumerWidget {
                                   ),
                                 ),
                               ),
-                              const SizedBox(height: 4),
+                              const SizedBox(height: 2),
                               Text(
                                 projectName,
                                 style: GoogleFonts.inter(
@@ -922,44 +922,37 @@ class DashboardScreen extends ConsumerWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      alignment: WrapAlignment.end,
+                    const SizedBox(height: 12),
+                    Row(
                       children: [
-                        OutlinedButton.icon(
-                          onPressed: () => _handleLogTimeTask(context, ref, task),
-                          icon: const Icon(Icons.more_time_rounded, size: 18),
-                          label: const Text('Czas pracy'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: theme.colorScheme.primary,
-                            side: BorderSide(color: theme.colorScheme.primary.withValues(alpha: 0.5)),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        Expanded(
+                          child: _buildCompactButton(
+                            context,
+                            icon: Icons.more_time_rounded,
+                            label: 'Dodaj czas',
+                            color: theme.colorScheme.primary,
+                            onTap: () => _handleLogTimeTask(context, ref, task),
                           ),
                         ),
-                        OutlinedButton.icon(
-                          onPressed: () => _handlePauseTask(context, ref, task),
-                          icon: const Icon(Icons.pause_rounded, size: 18),
-                          label: const Text('Wstrzymaj'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.orange.shade800,
-                            side: BorderSide(color: Colors.orange.shade600.withValues(alpha: 0.5)),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _buildCompactButton(
+                            context,
+                            icon: Icons.pause_rounded,
+                            label: 'Wstrzymaj',
+                            color: Colors.orange.shade800,
+                            onTap: () => _handlePauseTask(context, ref, task),
                           ),
                         ),
-                        ElevatedButton.icon(
-                          onPressed: () => _handleCompleteTask(context, ref, task),
-                          icon: const Icon(Icons.check_rounded, size: 18),
-                          label: const Text('Zakończ'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green.shade700,
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _buildCompactButton(
+                            context,
+                            icon: Icons.check_rounded,
+                            label: 'Zakończ',
+                            color: Colors.green.shade700,
+                            isFilled: true,
+                            onTap: () => _handleCompleteTask(context, ref, task),
                           ),
                         ),
                       ],
@@ -1326,5 +1319,79 @@ class DashboardScreen extends ConsumerWidget {
         ),
       );
     }
+  }
+
+  Widget _buildCompactButton(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required Color color,
+    bool isFilled = false,
+    required VoidCallback onTap,
+  }) {
+    final textStyle = GoogleFonts.inter(
+      fontSize: 11,
+      fontWeight: FontWeight.bold,
+      color: isFilled ? Colors.white : color,
+    );
+
+    return SizedBox(
+      height: 34,
+      child: isFilled
+          ? ElevatedButton(
+              onPressed: onTap,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: color,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, size: 14, color: Colors.white),
+                  const SizedBox(width: 4),
+                  Flexible(
+                    child: Text(
+                      label,
+                      style: textStyle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : OutlinedButton(
+              onPressed: onTap,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: color,
+                side: BorderSide(color: color.withValues(alpha: 0.4)),
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, size: 14, color: color),
+                  const SizedBox(width: 4),
+                  Flexible(
+                    child: Text(
+                      label,
+                      style: textStyle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+    );
   }
 }
