@@ -553,6 +553,8 @@ class DashboardScreen extends ConsumerWidget {
                   loading: () => const Center(child: CircularProgressIndicator()),
                   error: (err, stack) => Center(child: Text('Błąd statystyk: $err')),
                 ),
+                const SizedBox(height: 24),
+                const TodoSection(),
                 const SizedBox(height: 28),
 
                 // 4. Recent Activity Feed (Comments + New Tasks)
@@ -1392,6 +1394,486 @@ class DashboardScreen extends ConsumerWidget {
                 ],
               ),
             ),
+    );
+  }
+}
+
+class TodoSection extends ConsumerStatefulWidget {
+  const TodoSection({super.key});
+
+  @override
+  ConsumerState<TodoSection> createState() => _TodoSectionState();
+}
+
+class _TodoSectionState extends ConsumerState<TodoSection> {
+  bool _isTodoExpanded = true;
+  bool _isCompletedExpanded = false;
+
+  void _showAddTaskDialog(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final projects = ref.read(projectsProvider).value ?? [];
+    
+    final titleController = TextEditingController();
+    final descController = TextEditingController();
+    String? selectedProjectId;
+    String selectedPriority = 'medium';
+    final formKey = GlobalKey<FormState>();
+    
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Row(
+                children: [
+                  Icon(Icons.playlist_add_rounded, color: theme.colorScheme.primary, size: 28),
+                  const SizedBox(width: 10),
+                  const Text('Dodaj zadanie ToDo'),
+                ],
+              ),
+              content: Form(
+                key: formKey,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      TextFormField(
+                        controller: titleController,
+                        autofocus: true,
+                        decoration: const InputDecoration(
+                          labelText: 'Nazwa zadania',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (val) {
+                          if (val == null || val.trim().isEmpty) return 'Wpisz nazwę';
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<String?>(
+                        initialValue: selectedProjectId,
+                        decoration: const InputDecoration(
+                          labelText: 'Projekt (opcjonalnie)',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: [
+                          const DropdownMenuItem<String?>(
+                            value: null,
+                            child: Text('Bez projektu (wrzutka)'),
+                          ),
+                          ...projects.map((p) => DropdownMenuItem<String?>(
+                                value: p.id,
+                                child: Text(p.name),
+                              )),
+                        ],
+                        onChanged: (val) {
+                          setDialogState(() {
+                            selectedProjectId = val;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<String>(
+                        initialValue: selectedPriority,
+                        decoration: const InputDecoration(
+                          labelText: 'Priorytet',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: const [
+                          DropdownMenuItem(value: 'low', child: Text('Niski')),
+                          DropdownMenuItem(value: 'medium', child: Text('Średni')),
+                          DropdownMenuItem(value: 'high', child: Text('Wysoki')),
+                          DropdownMenuItem(value: 'critical', child: Text('Krytyczny')),
+                        ],
+                        onChanged: (val) {
+                          if (val != null) {
+                            setDialogState(() {
+                              selectedPriority = val;
+                            });
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: descController,
+                        maxLines: 2,
+                        decoration: const InputDecoration(
+                          labelText: 'Opis (opcjonalnie)',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text('Anuluj', style: TextStyle(color: theme.colorScheme.secondary)),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    if (formKey.currentState?.validate() ?? false) {
+                      Navigator.of(context).pop();
+                      try {
+                        await ref.read(tasksProvider.notifier).createTask(
+                          title: titleController.text.trim(),
+                          description: descController.text.trim(),
+                          projectId: selectedProjectId,
+                          priority: selectedPriority,
+                        );
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Dodano nowe zadanie do listy ToDo'),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Błąd dodawania zadania: $e'),
+                              backgroundColor: Colors.red.shade600,
+                            ),
+                          );
+                        }
+                      }
+                    }
+                  },
+                  child: Text(
+                    'Dodaj',
+                    style: TextStyle(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _completeTask(BuildContext context, WidgetRef ref, ProjectTask task) async {
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => CompletionDialog(task: task),
+    );
+
+    if (result != null) {
+      final actualHours = result['actualHours'] as double?;
+      final completedAt = result['completedAt'] as DateTime?;
+
+      await ref.read(tasksProvider.notifier).updateTaskStatus(
+        task,
+        'completed',
+        actualHours: actualHours,
+        completedAt: completedAt,
+      );
+    }
+  }
+
+  Future<void> _revertToTodo(BuildContext context, WidgetRef ref, ProjectTask task) async {
+    await ref.read(tasksProvider.notifier).updateTaskStatus(
+      task,
+      'todo',
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final user = ref.watch(authProvider);
+    if (user == null) return const SizedBox.shrink();
+
+    final tasksAsync = ref.watch(tasksProvider);
+
+    return tasksAsync.when(
+      data: (tasks) {
+        final myTodoTasks = tasks.where((t) => t.assignedTo == user.id && t.status == 'todo').toList();
+        final myCompletedTasks = tasks.where((t) => t.assignedTo == user.id && t.status == 'completed').toList();
+
+        return Container(
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: theme.colorScheme.secondary.withValues(alpha: 0.05),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Header row
+              InkWell(
+                onTap: () {
+                  setState(() {
+                    _isTodoExpanded = !_isTodoExpanded;
+                  });
+                },
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    children: [
+                      Text(
+                        'ToDo',
+                        style: GoogleFonts.outfit(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                      ),
+                      const Spacer(),
+                      Icon(
+                        _isTodoExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                        color: theme.colorScheme.onSurface,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              if (_isTodoExpanded) ...[
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Subheader
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            '${myTodoTasks.length} aktywnych',
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: theme.colorScheme.secondary.withValues(alpha: 0.7),
+                            ),
+                          ),
+                          ElevatedButton(
+                            onPressed: () => _showAddTaskDialog(context, ref),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: theme.colorScheme.primary,
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.add, size: 14),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Dodaj',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      // Active Tasks
+                      if (myTodoTasks.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 12.0),
+                          child: Text(
+                            'Brak aktywnych zadań ToDo. Gratulacje! 🎉',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: theme.colorScheme.secondary.withValues(alpha: 0.5),
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        )
+                      else
+                        ListView.separated(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: myTodoTasks.length,
+                          separatorBuilder: (context, index) => const SizedBox(height: 8),
+                          itemBuilder: (context, index) {
+                            final task = myTodoTasks[index];
+                            return Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.surface,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: theme.colorScheme.secondary.withValues(alpha: 0.05),
+                                ),
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: Checkbox(
+                                      value: false,
+                                      onChanged: (val) {
+                                        if (val == true) {
+                                          _completeTask(context, ref, task);
+                                        }
+                                      },
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      side: BorderSide(
+                                        color: theme.colorScheme.secondary.withValues(alpha: 0.4),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: GestureDetector(
+                                      onTap: () {
+                                        showModalBottomSheet(
+                                          context: context,
+                                          isScrollControlled: true,
+                                          backgroundColor: Colors.transparent,
+                                          builder: (context) => TaskDetailSheet(task: task),
+                                        );
+                                      },
+                                      child: Text(
+                                        task.title,
+                                        style: GoogleFonts.inter(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w500,
+                                          color: theme.colorScheme.onSurface,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      // Completed Section
+                      if (myCompletedTasks.isNotEmpty) ...[
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 8.0),
+                          child: Divider(),
+                        ),
+                        InkWell(
+                          onTap: () {
+                            setState(() {
+                              _isCompletedExpanded = !_isCompletedExpanded;
+                            });
+                          },
+                          borderRadius: BorderRadius.circular(8),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4),
+                            child: Row(
+                              children: [
+                                Text(
+                                  'Ukończone (${myCompletedTasks.length})',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: theme.colorScheme.secondary.withValues(alpha: 0.7),
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Icon(
+                                  _isCompletedExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                                  size: 14,
+                                  color: theme.colorScheme.secondary.withValues(alpha: 0.7),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        if (_isCompletedExpanded) ...[
+                          const SizedBox(height: 8),
+                          ListView.separated(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: myCompletedTasks.length,
+                            separatorBuilder: (context, index) => const SizedBox(height: 8),
+                            itemBuilder: (context, index) {
+                              final task = myCompletedTasks[index];
+                              return Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.surface.withValues(alpha: 0.5),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    SizedBox(
+                                      width: 24,
+                                      height: 24,
+                                      child: Checkbox(
+                                        value: true,
+                                        onChanged: (val) {
+                                          if (val == false) {
+                                            _revertToTodo(context, ref, task);
+                                          }
+                                        },
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        activeColor: theme.colorScheme.primary.withValues(alpha: 0.6),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: GestureDetector(
+                                        onTap: () {
+                                          showModalBottomSheet(
+                                            context: context,
+                                            isScrollControlled: true,
+                                            backgroundColor: Colors.transparent,
+                                            builder: (context) => TaskDetailSheet(task: task),
+                                          );
+                                        },
+                                        child: Text(
+                                          task.title,
+                                          style: GoogleFonts.inter(
+                                            fontSize: 13,
+                                            decoration: TextDecoration.lineThrough,
+                                            color: theme.colorScheme.secondary.withValues(alpha: 0.5),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ],
+                      const SizedBox(height: 16),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (err, stack) => const SizedBox.shrink(),
     );
   }
 }
