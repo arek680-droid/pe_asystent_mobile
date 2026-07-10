@@ -141,11 +141,13 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
       final taskTitle = taskMap?['title']?.toString() ?? 'Zadanie';
       final taskId = commentJson['task_id']?.toString() ?? '';
 
-      IconData icon;
-      Color color;
-      String description;
+      IconData icon = Icons.info_outline;
+      Color color = Colors.grey;
+      String description = '';
+      bool isStatusOrLog = false;
 
       if (commentText.startsWith('[STATUS] Zmiana statusu na: ')) {
+        isStatusOrLog = true;
         final status = commentText.replaceFirst('[STATUS] Zmiana statusu na: ', '');
         description = 'Zmienił status na: $status';
         if (status.contains('W trakcie')) {
@@ -174,6 +176,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
           color = Colors.grey;
         }
       } else if (commentText.startsWith('[LOG] Dodano czas pracy: ')) {
+        isStatusOrLog = true;
         final timePart = commentText.replaceFirst('[LOG] Dodano czas pracy: ', '').split(' (').first;
         description = 'Zadeklarował czas pracy: $timePart';
         icon = Icons.more_time_rounded;
@@ -186,14 +189,48 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
           report.totalHours += h + (m / 60.0);
         }
       } else if (commentText.startsWith('[WSTRZYMANO] ')) {
+        isStatusOrLog = true;
         final reason = commentText.replaceFirst('[WSTRZYMANO] ', '');
         description = 'Wstrzymał zadanie (Powód: $reason)';
         icon = Icons.pause_circle_filled_rounded;
         color = Colors.orange;
-      } else {
-        description = 'Dodał komentarz: "$commentText"';
-        icon = Icons.comment_rounded;
-        color = Colors.blue.shade300;
+      } else if (commentText.startsWith('[ZAKONCZONE]') || commentText.startsWith('[ZAKOŃCZONE]')) {
+        isStatusOrLog = true;
+        description = 'Zmienił status na: Zakończone';
+        icon = Icons.check_circle_rounded;
+        color = Colors.green;
+
+        final timeMatch = RegExp(r'(?:Czas pracy:|czas:|godziny:)\s*(\d+)h\s*(\d+)m', caseSensitive: false).firstMatch(commentText);
+        if (timeMatch != null) {
+          final h = double.tryParse(timeMatch.group(1) ?? '0') ?? 0.0;
+          final m = double.tryParse(timeMatch.group(2) ?? '0') ?? 0.0;
+          report.totalHours += h + (m / 60.0);
+          description += ' (Czas pracy: ${h.toInt()}h ${m.toInt()}m)';
+        }
+      } else if (commentText.startsWith('[ROZPOCZETE]') || commentText.startsWith('[ROZPOCZĘTE]') || commentText.startsWith('[W TRAKCIE]')) {
+        isStatusOrLog = true;
+        description = 'Zmienił status na: W trakcie';
+        icon = Icons.pending_actions_rounded;
+        color = Colors.blue;
+      } else if (commentText.startsWith('[WSTRZYMANE]')) {
+        isStatusOrLog = true;
+        description = 'Wstrzymał zadanie';
+        icon = Icons.pause_circle_filled_rounded;
+        color = Colors.orange;
+      } else if (commentText.startsWith('[DO AKCEPTACJI]') || commentText.startsWith('[DO_AKCEPTACJI]')) {
+        isStatusOrLog = true;
+        description = 'Zmienił status na: Do akceptacji';
+        icon = Icons.fact_check_rounded;
+        color = Colors.purple;
+      } else if (commentText.startsWith('[NOWE]') || commentText.startsWith('[DO ZROBIENIA]')) {
+        isStatusOrLog = true;
+        description = 'Zmienił status na: Do zrobienia';
+        icon = Icons.radio_button_unchecked;
+        color = Colors.grey;
+      }
+
+      if (!isStatusOrLog) {
+        continue;
       }
 
       // Format time in Polish local time
