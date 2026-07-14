@@ -1565,6 +1565,14 @@ class _TodoSectionState extends ConsumerState<TodoSection> {
     final user = ref.watch(authProvider);
     if (user == null) return const SizedBox.shrink();
 
+    final launchAction = ref.watch(launchActionProvider);
+    if (launchAction == 'add_todo') {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(launchActionProvider.notifier).state = null;
+        _showAddTaskDialog(context, ref);
+      });
+    }
+
     final todoNotesAsync = ref.watch(todoNotesProvider);
 
     return todoNotesAsync.when(

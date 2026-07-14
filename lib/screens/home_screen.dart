@@ -12,6 +12,8 @@ import '../providers/avatar_provider.dart';
 import '../providers/profile_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/realtime_notification_provider.dart';
+import 'package:home_widget/home_widget.dart';
+import '../providers/todo_notes_provider.dart';
 import 'dashboard_screen.dart';
 import 'profile_screen.dart';
 import 'report_screen.dart';
@@ -27,6 +29,37 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _setupWidgetClicks();
+  }
+
+  void _setupWidgetClicks() {
+    // Check initially launched widget URI
+    HomeWidget.initiallyLaunchedFromHomeWidget().then((uri) {
+      _handleWidgetUri(uri);
+    });
+    // Listen to background click streams
+    HomeWidget.widgetClicked.listen((uri) {
+      _handleWidgetUri(uri);
+    });
+  }
+
+  void _handleWidgetUri(Uri? uri) {
+    if (uri != null && uri.scheme == 'homewidget' && uri.host == 'todo') {
+      final action = uri.queryParameters['action'];
+      if (action == 'add') {
+        ref.read(launchActionProvider.notifier).state = 'add_todo';
+        if (mounted && _currentIndex != 0) {
+          setState(() {
+            _currentIndex = 0;
+          });
+        }
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

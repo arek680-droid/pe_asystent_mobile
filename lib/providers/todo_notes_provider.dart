@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:home_widget/home_widget.dart';
 import '../models/todo_note.dart';
 import 'auth_provider.dart';
 
@@ -110,4 +111,34 @@ class TodoNotesNotifier extends StateNotifier<AsyncValue<List<TodoNote>>> {
       rethrow;
     }
   }
+
+  @override
+  set state(AsyncValue<List<TodoNote>> value) {
+    super.state = value;
+    if (value is AsyncData<List<TodoNote>>) {
+      _updateHomeWidget();
+    }
+  }
+
+  Future<void> _updateHomeWidget() async {
+    try {
+      final list = state.value ?? [];
+      final active = list.where((n) => !n.completed).toList();
+      
+      await HomeWidget.saveWidgetData<int>('todo_count', active.length);
+      await HomeWidget.saveWidgetData<String?>('todo_1', active.isNotEmpty ? active[0].title : null);
+      await HomeWidget.saveWidgetData<String?>('todo_2', active.length > 1 ? active[1].title : null);
+      await HomeWidget.saveWidgetData<String?>('todo_3', active.length > 2 ? active[2].title : null);
+      await HomeWidget.saveWidgetData<String?>('todo_4', active.length > 3 ? active[3].title : null);
+      
+      await HomeWidget.updateWidget(
+        name: 'TodoWidgetProvider',
+        androidName: 'TodoWidgetProvider',
+      );
+    } catch (e) {
+      // Fail silently
+    }
+  }
 }
+
+final launchActionProvider = StateProvider<String?>((ref) => null);

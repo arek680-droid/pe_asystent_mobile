@@ -43,6 +43,7 @@ dependencies:
   http: ^1.2.0
   flutter_3d_controller: ^1.2.1
   flutter_local_notifications: ^22.0.1
+  home_widget: ^0.6.0
 
 dev_dependencies:
   flutter_test:
