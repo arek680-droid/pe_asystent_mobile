@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -1411,7 +1412,7 @@ class _TodoSectionState extends ConsumerState<TodoSection> {
   bool _isTodoExpanded = true;
   bool _isCompletedExpanded = false;
 
-  void _showAddTaskDialog(BuildContext context, WidgetRef ref) {
+  void _showAddTaskDialog(BuildContext context, WidgetRef ref, {bool isWidgetLaunch = false}) {
     final theme = Theme.of(context);
     final titleController = TextEditingController();
     String selectedPriority = 'medium';
@@ -1558,7 +1559,11 @@ class _TodoSectionState extends ConsumerState<TodoSection> {
           },
         );
       },
-    );
+    ).then((_) {
+      if (isWidgetLaunch) {
+        SystemNavigator.pop();
+      }
+    });
   }
 
   Future<void> _toggleTodo(WidgetRef ref, TodoNote note) async {
@@ -1609,7 +1614,7 @@ class _TodoSectionState extends ConsumerState<TodoSection> {
     if (launchAction == 'add_todo') {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         ref.read(launchActionProvider.notifier).state = null;
-        _showAddTaskDialog(context, ref);
+        _showAddTaskDialog(context, ref, isWidgetLaunch: true);
       });
     }
 
