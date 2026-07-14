@@ -10,6 +10,8 @@ import '../providers/settings_provider.dart';
 import '../providers/project_provider.dart';
 import '../models/project_task.dart';
 import '../models/project.dart';
+import '../models/todo_note.dart';
+import '../providers/todo_notes_provider.dart';
 import '../widgets/completion_dialog.dart';
 import '../widgets/log_hours_dialog.dart';
 import 'task_detail_sheet.dart';
@@ -1411,11 +1413,7 @@ class _TodoSectionState extends ConsumerState<TodoSection> {
 
   void _showAddTaskDialog(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final projects = ref.read(projectsProvider).value ?? [];
-    
     final titleController = TextEditingController();
-    final descController = TextEditingController();
-    String? selectedProjectId;
     String selectedPriority = 'medium';
     final formKey = GlobalKey<FormState>();
     
@@ -1434,78 +1432,43 @@ class _TodoSectionState extends ConsumerState<TodoSection> {
               ),
               content: Form(
                 key: formKey,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      TextFormField(
-                        controller: titleController,
-                        autofocus: true,
-                        decoration: const InputDecoration(
-                          labelText: 'Nazwa zadania',
-                          border: OutlineInputBorder(),
-                        ),
-                        validator: (val) {
-                          if (val == null || val.trim().isEmpty) return 'Wpisz nazwę';
-                          return null;
-                        },
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    TextFormField(
+                      controller: titleController,
+                      autofocus: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Nazwa zadania',
+                        border: OutlineInputBorder(),
                       ),
-                      const SizedBox(height: 16),
-                      DropdownButtonFormField<String?>(
-                        initialValue: selectedProjectId,
-                        decoration: const InputDecoration(
-                          labelText: 'Projekt (opcjonalnie)',
-                          border: OutlineInputBorder(),
-                        ),
-                        items: [
-                          const DropdownMenuItem<String?>(
-                            value: null,
-                            child: Text('Bez projektu (wrzutka)'),
-                          ),
-                          ...projects.map((p) => DropdownMenuItem<String?>(
-                                value: p.id,
-                                child: Text(p.name),
-                              )),
-                        ],
-                        onChanged: (val) {
+                      validator: (val) {
+                        if (val == null || val.trim().isEmpty) return 'Wpisz nazwę';
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      initialValue: selectedPriority,
+                      decoration: const InputDecoration(
+                        labelText: 'Priorytet',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: 'low', child: Text('Niski')),
+                        DropdownMenuItem(value: 'medium', child: Text('Średni')),
+                        DropdownMenuItem(value: 'high', child: Text('Wysoki')),
+                      ],
+                      onChanged: (val) {
+                        if (val != null) {
                           setDialogState(() {
-                            selectedProjectId = val;
+                            selectedPriority = val;
                           });
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      DropdownButtonFormField<String>(
-                        initialValue: selectedPriority,
-                        decoration: const InputDecoration(
-                          labelText: 'Priorytet',
-                          border: OutlineInputBorder(),
-                        ),
-                        items: const [
-                          DropdownMenuItem(value: 'low', child: Text('Niski')),
-                          DropdownMenuItem(value: 'medium', child: Text('Średni')),
-                          DropdownMenuItem(value: 'high', child: Text('Wysoki')),
-                          DropdownMenuItem(value: 'critical', child: Text('Krytyczny')),
-                        ],
-                        onChanged: (val) {
-                          if (val != null) {
-                            setDialogState(() {
-                              selectedPriority = val;
-                            });
-                          }
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        controller: descController,
-                        maxLines: 2,
-                        decoration: const InputDecoration(
-                          labelText: 'Opis (opcjonalnie)',
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                    ],
-                  ),
+                        }
+                      },
+                    ),
+                  ],
                 ),
               ),
               actions: [
@@ -1518,10 +1481,8 @@ class _TodoSectionState extends ConsumerState<TodoSection> {
                     if (formKey.currentState?.validate() ?? false) {
                       Navigator.of(context).pop();
                       try {
-                        await ref.read(tasksProvider.notifier).createTask(
+                        await ref.read(todoNotesProvider.notifier).createTodoNote(
                           title: titleController.text.trim(),
-                          description: descController.text.trim(),
-                          projectId: selectedProjectId,
                           priority: selectedPriority,
                         );
                         if (context.mounted) {
@@ -1560,31 +1521,42 @@ class _TodoSectionState extends ConsumerState<TodoSection> {
     );
   }
 
-  Future<void> _completeTask(BuildContext context, WidgetRef ref, ProjectTask task) async {
-    final result = await showDialog<Map<String, dynamic>>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => CompletionDialog(task: task),
-    );
-
-    if (result != null) {
-      final actualHours = result['actualHours'] as double?;
-      final completedAt = result['completedAt'] as DateTime?;
-
-      await ref.read(tasksProvider.notifier).updateTaskStatus(
-        task,
-        'completed',
-        actualHours: actualHours,
-        completedAt: completedAt,
-      );
+  Future<void> _toggleTodo(WidgetRef ref, TodoNote note) async {
+    try {
+      await ref.read(todoNotesProvider.notifier).toggleTodoNote(note);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Błąd zmiany statusu: $e'),
+            backgroundColor: Colors.red.shade600,
+          ),
+        );
+      }
     }
   }
 
-  Future<void> _revertToTodo(BuildContext context, WidgetRef ref, ProjectTask task) async {
-    await ref.read(tasksProvider.notifier).updateTaskStatus(
-      task,
-      'todo',
-    );
+  Future<void> _deleteTodo(BuildContext context, WidgetRef ref, String id) async {
+    try {
+      await ref.read(todoNotesProvider.notifier).deleteTodoNote(id);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Usunięto zadanie ToDo'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Błąd usuwania zadania: $e'),
+            backgroundColor: Colors.red.shade600,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -1593,12 +1565,12 @@ class _TodoSectionState extends ConsumerState<TodoSection> {
     final user = ref.watch(authProvider);
     if (user == null) return const SizedBox.shrink();
 
-    final tasksAsync = ref.watch(tasksProvider);
+    final todoNotesAsync = ref.watch(todoNotesProvider);
 
-    return tasksAsync.when(
-      data: (tasks) {
-        final myTodoTasks = tasks.where((t) => t.assignedTo == user.id && t.status == 'todo').toList();
-        final myCompletedTasks = tasks.where((t) => t.assignedTo == user.id && t.status == 'completed').toList();
+    return todoNotesAsync.when(
+      data: (notes) {
+        final activeNotes = notes.where((n) => !n.completed).toList();
+        final completedNotes = notes.where((n) => n.completed).toList();
 
         return Container(
           decoration: BoxDecoration(
@@ -1651,7 +1623,7 @@ class _TodoSectionState extends ConsumerState<TodoSection> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            '${myTodoTasks.length} aktywnych',
+                            '${activeNotes.length} aktywnych',
                             style: GoogleFonts.inter(
                               fontSize: 13,
                               fontWeight: FontWeight.w500,
@@ -1690,7 +1662,7 @@ class _TodoSectionState extends ConsumerState<TodoSection> {
                       ),
                       const SizedBox(height: 12),
                       // Active Tasks
-                      if (myTodoTasks.isEmpty)
+                      if (activeNotes.isEmpty)
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 12.0),
                           child: Text(
@@ -1706,10 +1678,10 @@ class _TodoSectionState extends ConsumerState<TodoSection> {
                         ListView.separated(
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
-                          itemCount: myTodoTasks.length,
+                          itemCount: activeNotes.length,
                           separatorBuilder: (context, index) => const SizedBox(height: 8),
                           itemBuilder: (context, index) {
-                            final task = myTodoTasks[index];
+                            final note = activeNotes[index];
                             return Container(
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                               decoration: BoxDecoration(
@@ -1729,7 +1701,7 @@ class _TodoSectionState extends ConsumerState<TodoSection> {
                                       value: false,
                                       onChanged: (val) {
                                         if (val == true) {
-                                          _completeTask(context, ref, task);
+                                          _toggleTodo(ref, note);
                                         }
                                       },
                                       shape: RoundedRectangleBorder(
@@ -1742,24 +1714,22 @@ class _TodoSectionState extends ConsumerState<TodoSection> {
                                   ),
                                   const SizedBox(width: 8),
                                   Expanded(
-                                    child: GestureDetector(
-                                      onTap: () {
-                                        showModalBottomSheet(
-                                          context: context,
-                                          isScrollControlled: true,
-                                          backgroundColor: Colors.transparent,
-                                          builder: (context) => TaskDetailSheet(task: task),
-                                        );
-                                      },
-                                      child: Text(
-                                        task.title,
-                                        style: GoogleFonts.inter(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w500,
-                                          color: theme.colorScheme.onSurface,
-                                        ),
+                                    child: Text(
+                                      note.title,
+                                      style: GoogleFonts.inter(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500,
+                                        color: theme.colorScheme.onSurface,
                                       ),
                                     ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                                    onPressed: () => _deleteTodo(context, ref, note.id),
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                    color: theme.colorScheme.error.withValues(alpha: 0.6),
                                   ),
                                 ],
                               ),
@@ -1767,7 +1737,7 @@ class _TodoSectionState extends ConsumerState<TodoSection> {
                           },
                         ),
                       // Completed Section
-                      if (myCompletedTasks.isNotEmpty) ...[
+                      if (completedNotes.isNotEmpty) ...[
                         const Padding(
                           padding: EdgeInsets.symmetric(vertical: 8.0),
                           child: Divider(),
@@ -1784,7 +1754,7 @@ class _TodoSectionState extends ConsumerState<TodoSection> {
                             child: Row(
                               children: [
                                 Text(
-                                  'Ukończone (${myCompletedTasks.length})',
+                                  'Ukończone (${completedNotes.length})',
                                   style: GoogleFonts.inter(
                                     fontSize: 12,
                                     fontWeight: FontWeight.bold,
@@ -1806,10 +1776,10 @@ class _TodoSectionState extends ConsumerState<TodoSection> {
                           ListView.separated(
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
-                            itemCount: myCompletedTasks.length,
+                            itemCount: completedNotes.length,
                             separatorBuilder: (context, index) => const SizedBox(height: 8),
                             itemBuilder: (context, index) {
-                              final task = myCompletedTasks[index];
+                              final note = completedNotes[index];
                               return Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                                 decoration: BoxDecoration(
@@ -1826,7 +1796,7 @@ class _TodoSectionState extends ConsumerState<TodoSection> {
                                         value: true,
                                         onChanged: (val) {
                                           if (val == false) {
-                                            _revertToTodo(context, ref, task);
+                                            _toggleTodo(ref, note);
                                           }
                                         },
                                         shape: RoundedRectangleBorder(
@@ -1837,24 +1807,22 @@ class _TodoSectionState extends ConsumerState<TodoSection> {
                                     ),
                                     const SizedBox(width: 8),
                                     Expanded(
-                                      child: GestureDetector(
-                                        onTap: () {
-                                          showModalBottomSheet(
-                                            context: context,
-                                            isScrollControlled: true,
-                                            backgroundColor: Colors.transparent,
-                                            builder: (context) => TaskDetailSheet(task: task),
-                                          );
-                                        },
-                                        child: Text(
-                                          task.title,
-                                          style: GoogleFonts.inter(
-                                            fontSize: 13,
-                                            decoration: TextDecoration.lineThrough,
-                                            color: theme.colorScheme.secondary.withValues(alpha: 0.5),
-                                          ),
+                                      child: Text(
+                                        note.title,
+                                        style: GoogleFonts.inter(
+                                          fontSize: 13,
+                                          decoration: TextDecoration.lineThrough,
+                                          color: theme.colorScheme.secondary.withValues(alpha: 0.5),
                                         ),
                                       ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    IconButton(
+                                      icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                                      onPressed: () => _deleteTodo(context, ref, note.id),
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(),
+                                      color: theme.colorScheme.error.withValues(alpha: 0.6),
                                     ),
                                   ],
                                 ),
