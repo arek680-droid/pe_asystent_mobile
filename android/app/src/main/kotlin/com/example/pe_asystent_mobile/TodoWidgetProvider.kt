@@ -72,7 +72,7 @@ class TodoWidgetProvider : HomeWidgetProvider() {
 
             // Click pending intent for the entire widget to launch MainActivity
             val activityIntent = Intent(context, MainActivity::class.java).apply {
-                data = Uri.parse("homeWidget://todo?action=open")
+                data = Uri.parse("homewidget://todo?action=open")
             }
             val pendingIntent = PendingIntent.getActivity(
                 context, 
@@ -84,7 +84,7 @@ class TodoWidgetProvider : HomeWidgetProvider() {
 
             // Click pending intent for the "+ Dodaj" button to launch MainActivity
             val addIntent = Intent(context, MainActivity::class.java).apply {
-                data = Uri.parse("homeWidget://todo?action=add")
+                data = Uri.parse("homewidget://todo?action=add")
             }
             val pendingAddIntent = PendingIntent.getActivity(
                 context, 
