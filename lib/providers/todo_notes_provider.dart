@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:home_widget/home_widget.dart';
@@ -161,9 +162,10 @@ class TodoNotesNotifier extends StateNotifier<AsyncValue<List<TodoNote>>> {
       await HomeWidget.updateWidget(
         name: 'TodoWidgetProvider',
         androidName: 'TodoWidgetProvider',
+        qualifiedAndroidName: 'com.example.pe_asystent_mobile.TodoWidgetProvider',
       );
-    } catch (e) {
-      // Fail silently
+    } catch (e, stack) {
+      debugPrint('Error updating home widget: $e\n$stack');
     }
   }
 }
