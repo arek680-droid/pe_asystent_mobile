@@ -225,18 +225,23 @@ class TasksNotifier extends StateNotifier<AsyncValue<List<ProjectTask>>> {
     required String description,
     required String? projectId,
     required String priority,
+    String status = 'todo',
+    String? assignedTo,
+    bool assignToSelfIfNull = true,
   }) async {
     try {
       final user = _ref.read(authProvider);
       if (user == null) return;
 
+      final assignedToValue = assignedTo ?? (assignToSelfIfNull ? user.id : null);
+
       final newTaskMap = {
         'project_id': projectId,
         'title': title,
         'description': description,
-        'status': 'todo',
+        'status': status,
         'priority': priority,
-        'assigned_to': user.id,
+        'assigned_to': assignedToValue,
         'created_by': user.id,
         'estimated_hours': 0.0,
         'actual_hours': 0.0,
@@ -259,3 +264,11 @@ class TasksNotifier extends StateNotifier<AsyncValue<List<ProjectTask>>> {
     }
   }
 }
+
+final allProfilesProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  final response = await Supabase.instance.client
+      .from('user_profiles')
+      .select('id, display_name')
+      .order('display_name', ascending: true);
+  return List<Map<String, dynamic>>.from(response as List);
+});

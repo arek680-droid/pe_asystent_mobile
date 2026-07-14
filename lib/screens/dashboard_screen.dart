@@ -1566,6 +1566,327 @@ class _TodoSectionState extends ConsumerState<TodoSection> {
     });
   }
 
+  void _showAddNormalTaskDialog(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final titleController = TextEditingController();
+    final descController = TextEditingController();
+    String? selectedProjectId;
+    String? selectedAssignedTo;
+    String selectedStatus = 'todo';
+    String selectedPriority = 'medium';
+    final formKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final projectsAsync = ref.watch(projectsProvider);
+            final profilesAsync = ref.watch(allProfilesProvider);
+
+            return AlertDialog(
+              backgroundColor: theme.colorScheme.surface,
+              surfaceTintColor: Colors.transparent,
+              title: Row(
+                children: [
+                  Icon(Icons.assignment_add, color: theme.colorScheme.primary, size: 28),
+                  const SizedBox(width: 10),
+                  Text(
+                    'Nowe zadanie główne',
+                    style: GoogleFonts.outfit(
+                      color: theme.colorScheme.onSurface,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 20,
+                    ),
+                  ),
+                ],
+              ),
+              content: SizedBox(
+                width: MediaQuery.of(context).size.width * 0.9,
+                child: Form(
+                  key: formKey,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Title
+                        TextFormField(
+                          controller: titleController,
+                          style: GoogleFonts.inter(color: theme.colorScheme.onSurface),
+                          decoration: InputDecoration(
+                            labelText: 'Tytuł zadania',
+                            labelStyle: GoogleFonts.inter(color: theme.colorScheme.onSurface.withValues(alpha: 0.7)),
+                            border: const OutlineInputBorder(),
+                            enabledBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: theme.colorScheme.onSurface.withValues(alpha: 0.2)),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: theme.colorScheme.primary),
+                            ),
+                          ),
+                          validator: (val) {
+                            if (val == null || val.trim().isEmpty) return 'Wpisz tytuł';
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        
+                        // Description
+                        TextFormField(
+                          controller: descController,
+                          maxLines: 3,
+                          style: GoogleFonts.inter(color: theme.colorScheme.onSurface),
+                          decoration: InputDecoration(
+                            labelText: 'Opis (opcjonalnie)',
+                            labelStyle: GoogleFonts.inter(color: theme.colorScheme.onSurface.withValues(alpha: 0.7)),
+                            border: const OutlineInputBorder(),
+                            enabledBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: theme.colorScheme.onSurface.withValues(alpha: 0.2)),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: theme.colorScheme.primary),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Project dropdown
+                        projectsAsync.when(
+                          data: (projects) {
+                            return DropdownButtonFormField<String?>(
+                              initialValue: selectedProjectId,
+                              style: GoogleFonts.inter(color: theme.colorScheme.onSurface),
+                              dropdownColor: theme.colorScheme.surface,
+                              decoration: InputDecoration(
+                                labelText: 'Projekt',
+                                labelStyle: GoogleFonts.inter(color: theme.colorScheme.onSurface.withValues(alpha: 0.7)),
+                                border: const OutlineInputBorder(),
+                                enabledBorder: OutlineInputBorder(
+                                  borderSide: BorderSide(color: theme.colorScheme.onSurface.withValues(alpha: 0.2)),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderSide: BorderSide(color: theme.colorScheme.primary),
+                                ),
+                              ),
+                              items: [
+                                DropdownMenuItem<String?>(
+                                  value: null,
+                                  child: Text('Brak projektu', style: GoogleFonts.inter(color: theme.colorScheme.onSurface)),
+                                ),
+                                ...projects.map((p) => DropdownMenuItem<String?>(
+                                  value: p.id,
+                                  child: Text(p.name, style: GoogleFonts.inter(color: theme.colorScheme.onSurface)),
+                                )),
+                              ],
+                              onChanged: (val) {
+                                setDialogState(() {
+                                  selectedProjectId = val;
+                                });
+                              },
+                            );
+                          },
+                          loading: () => const Center(child: CircularProgressIndicator()),
+                          error: (e, _) => Text('Błąd projektów: $e', style: const TextStyle(color: Colors.red)),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Assigned To dropdown
+                        profilesAsync.when(
+                          data: (profiles) {
+                            return DropdownButtonFormField<String?>(
+                              initialValue: selectedAssignedTo,
+                              style: GoogleFonts.inter(color: theme.colorScheme.onSurface),
+                              dropdownColor: theme.colorScheme.surface,
+                              decoration: InputDecoration(
+                                labelText: 'Osoba przypisana',
+                                labelStyle: GoogleFonts.inter(color: theme.colorScheme.onSurface.withValues(alpha: 0.7)),
+                                border: const OutlineInputBorder(),
+                                enabledBorder: OutlineInputBorder(
+                                  borderSide: BorderSide(color: theme.colorScheme.onSurface.withValues(alpha: 0.2)),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderSide: BorderSide(color: theme.colorScheme.primary),
+                                ),
+                              ),
+                              items: [
+                                DropdownMenuItem<String?>(
+                                  value: null,
+                                  child: Text('Brak przypisania', style: GoogleFonts.inter(color: theme.colorScheme.onSurface)),
+                                ),
+                                ...profiles.map((p) => DropdownMenuItem<String?>(
+                                  value: p['id']?.toString(),
+                                  child: Text(p['display_name']?.toString() ?? 'Użytkownik', style: GoogleFonts.inter(color: theme.colorScheme.onSurface)),
+                                )),
+                              ],
+                              onChanged: (val) {
+                                setDialogState(() {
+                                  selectedAssignedTo = val;
+                                });
+                              },
+                            );
+                          },
+                          loading: () => const Center(child: CircularProgressIndicator()),
+                          error: (e, _) => Text('Błąd użytkowników: $e', style: const TextStyle(color: Colors.red)),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Status dropdown
+                        DropdownButtonFormField<String>(
+                          initialValue: selectedStatus,
+                          style: GoogleFonts.inter(color: theme.colorScheme.onSurface),
+                          dropdownColor: theme.colorScheme.surface,
+                          decoration: InputDecoration(
+                            labelText: 'Status',
+                            labelStyle: GoogleFonts.inter(color: theme.colorScheme.onSurface.withValues(alpha: 0.7)),
+                            border: const OutlineInputBorder(),
+                            enabledBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: theme.colorScheme.onSurface.withValues(alpha: 0.2)),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: theme.colorScheme.primary),
+                            ),
+                          ),
+                          items: [
+                            DropdownMenuItem(
+                              value: 'todo',
+                              child: Text('Do zrobienia', style: GoogleFonts.inter(color: theme.colorScheme.onSurface)),
+                            ),
+                            DropdownMenuItem(
+                              value: 'in_progress',
+                              child: Text('W trakcie', style: GoogleFonts.inter(color: theme.colorScheme.onSurface)),
+                            ),
+                            DropdownMenuItem(
+                              value: 'to_accept',
+                              child: Text('Do akceptacji', style: GoogleFonts.inter(color: theme.colorScheme.onSurface)),
+                            ),
+                            DropdownMenuItem(
+                              value: 'completed',
+                              child: Text('Zakończone', style: GoogleFonts.inter(color: theme.colorScheme.onSurface)),
+                            ),
+                            DropdownMenuItem(
+                              value: 'on_hold',
+                              child: Text('Wstrzymane', style: GoogleFonts.inter(color: theme.colorScheme.onSurface)),
+                            ),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) {
+                              setDialogState(() {
+                                selectedStatus = val;
+                              });
+                            }
+                          },
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Priority dropdown
+                        DropdownButtonFormField<String>(
+                          initialValue: selectedPriority,
+                          style: GoogleFonts.inter(color: theme.colorScheme.onSurface),
+                          dropdownColor: theme.colorScheme.surface,
+                          decoration: InputDecoration(
+                            labelText: 'Priorytet',
+                            labelStyle: GoogleFonts.inter(color: theme.colorScheme.onSurface.withValues(alpha: 0.7)),
+                            border: const OutlineInputBorder(),
+                            enabledBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: theme.colorScheme.onSurface.withValues(alpha: 0.2)),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: theme.colorScheme.primary),
+                            ),
+                          ),
+                          items: [
+                            DropdownMenuItem(
+                              value: 'low',
+                              child: Text('Niski', style: GoogleFonts.inter(color: theme.colorScheme.onSurface)),
+                            ),
+                            DropdownMenuItem(
+                              value: 'medium',
+                              child: Text('Średni', style: GoogleFonts.inter(color: theme.colorScheme.onSurface)),
+                            ),
+                            DropdownMenuItem(
+                              value: 'high',
+                              child: Text('Wysoki', style: GoogleFonts.inter(color: theme.colorScheme.onSurface)),
+                            ),
+                            DropdownMenuItem(
+                              value: 'critical',
+                              child: Text('Krytyczny', style: GoogleFonts.inter(color: theme.colorScheme.onSurface)),
+                            ),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) {
+                              setDialogState(() {
+                                selectedPriority = val;
+                              });
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text(
+                    'Anuluj',
+                    style: GoogleFonts.inter(
+                      color: theme.colorScheme.secondary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    if (formKey.currentState?.validate() ?? false) {
+                      Navigator.of(context).pop();
+                      try {
+                        await ref.read(tasksProvider.notifier).createTask(
+                          title: titleController.text.trim(),
+                          description: descController.text.trim(),
+                          projectId: selectedProjectId,
+                          priority: selectedPriority,
+                          status: selectedStatus,
+                          assignedTo: selectedAssignedTo,
+                          assignToSelfIfNull: false,
+                        );
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Dodano nowe zadanie główne'),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Błąd dodawania zadania: $e'),
+                              backgroundColor: Colors.red.shade600,
+                            ),
+                          );
+                        }
+                      }
+                    }
+                  },
+                  child: Text(
+                    'Stwórz',
+                    style: GoogleFonts.inter(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   Future<void> _toggleTodo(WidgetRef ref, TodoNote note) async {
     try {
       await ref.read(todoNotesProvider.notifier).toggleTodoNote(note);
@@ -1683,33 +2004,67 @@ class _TodoSectionState extends ConsumerState<TodoSection> {
                               color: theme.colorScheme.secondary.withValues(alpha: 0.7),
                             ),
                           ),
-                          ElevatedButton(
-                            onPressed: () => _showAddTaskDialog(context, ref),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: theme.colorScheme.primary,
-                              foregroundColor: Colors.white,
-                              elevation: 0,
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                              minimumSize: Size.zero,
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.add, size: 14),
-                                const SizedBox(width: 4),
-                                Text(
-                                  'Dodaj',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              ElevatedButton(
+                                onPressed: () => _showAddNormalTaskDialog(context, ref),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: theme.colorScheme.secondary.withValues(alpha: 0.1),
+                                  foregroundColor: theme.colorScheme.secondary,
+                                  elevation: 0,
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  minimumSize: Size.zero,
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
                                   ),
                                 ),
-                              ],
-                            ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.assignment_add, size: 14),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '+ Główne',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              ElevatedButton(
+                                onPressed: () => _showAddTaskDialog(context, ref),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: theme.colorScheme.primary,
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                  minimumSize: Size.zero,
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.add, size: 14),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Dodaj',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
