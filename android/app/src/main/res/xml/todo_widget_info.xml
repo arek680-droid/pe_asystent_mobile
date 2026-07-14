@@ -3,7 +3,6 @@
     android:initialLayout="@layout/todo_widget"
     android:minWidth="180dp"
     android:minHeight="110dp"
-    android:previewImage="@drawable/widget_background"
     android:resizeMode="horizontal|vertical"
     android:updatePeriodMillis="0"
     android:widgetCategory="home_screen" />
