@@ -1906,6 +1906,58 @@ class _TodoSectionState extends ConsumerState<TodoSection> {
   }
 
   Future<void> _deleteTodo(BuildContext context, WidgetRef ref, String id) async {
+    final theme = Theme.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: theme.colorScheme.surface,
+          surfaceTintColor: Colors.transparent,
+          title: Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: theme.colorScheme.error, size: 28),
+              const SizedBox(width: 10),
+              Text(
+                'Usuń zadanie',
+                style: GoogleFonts.outfit(
+                  color: theme.colorScheme.onSurface,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            'Czy na pewno chcesz usunąć to zadanie z listy ToDo?',
+            style: GoogleFonts.inter(color: theme.colorScheme.onSurface),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(
+                'Anuluj',
+                style: GoogleFonts.inter(
+                  color: theme.colorScheme.secondary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: Text(
+                'Usuń',
+                style: GoogleFonts.inter(
+                  color: theme.colorScheme.error,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) return;
+
     try {
       await ref.read(todoNotesProvider.notifier).deleteTodoNote(id);
       if (context.mounted) {
