@@ -2043,7 +2043,7 @@ class _TodoSectionState extends ConsumerState<TodoSection> {
                                 onPressed: () => _showAddTaskDialog(context, ref),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: theme.colorScheme.primary,
-                                  foregroundColor: Colors.white,
+                                  foregroundColor: theme.colorScheme.onPrimary,
                                   elevation: 0,
                                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                   minimumSize: Size.zero,
