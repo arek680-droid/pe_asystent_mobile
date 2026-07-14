@@ -1423,11 +1423,19 @@ class _TodoSectionState extends ConsumerState<TodoSection> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
+              backgroundColor: theme.colorScheme.surface,
+              surfaceTintColor: Colors.transparent,
               title: Row(
                 children: [
                   Icon(Icons.playlist_add_rounded, color: theme.colorScheme.primary, size: 28),
                   const SizedBox(width: 10),
-                  const Text('Dodaj zadanie ToDo'),
+                  Text(
+                    'Dodaj zadanie ToDo',
+                    style: GoogleFonts.outfit(
+                      color: theme.colorScheme.onSurface,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ],
               ),
               content: Form(
@@ -1439,9 +1447,17 @@ class _TodoSectionState extends ConsumerState<TodoSection> {
                     TextFormField(
                       controller: titleController,
                       autofocus: true,
-                      decoration: const InputDecoration(
+                      style: GoogleFonts.inter(color: theme.colorScheme.onSurface),
+                      decoration: InputDecoration(
                         labelText: 'Nazwa zadania',
-                        border: OutlineInputBorder(),
+                        labelStyle: GoogleFonts.inter(color: theme.colorScheme.onSurface.withValues(alpha: 0.7)),
+                        border: const OutlineInputBorder(),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: theme.colorScheme.onSurface.withValues(alpha: 0.2)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: theme.colorScheme.primary),
+                        ),
                       ),
                       validator: (val) {
                         if (val == null || val.trim().isEmpty) return 'Wpisz nazwę';
@@ -1451,14 +1467,32 @@ class _TodoSectionState extends ConsumerState<TodoSection> {
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
                       initialValue: selectedPriority,
-                      decoration: const InputDecoration(
+                      style: GoogleFonts.inter(color: theme.colorScheme.onSurface),
+                      dropdownColor: theme.colorScheme.surface,
+                      decoration: InputDecoration(
                         labelText: 'Priorytet',
-                        border: OutlineInputBorder(),
+                        labelStyle: GoogleFonts.inter(color: theme.colorScheme.onSurface.withValues(alpha: 0.7)),
+                        border: const OutlineInputBorder(),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: theme.colorScheme.onSurface.withValues(alpha: 0.2)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: theme.colorScheme.primary),
+                        ),
                       ),
-                      items: const [
-                        DropdownMenuItem(value: 'low', child: Text('Niski')),
-                        DropdownMenuItem(value: 'medium', child: Text('Średni')),
-                        DropdownMenuItem(value: 'high', child: Text('Wysoki')),
+                      items: [
+                        DropdownMenuItem(
+                          value: 'low',
+                          child: Text('Niski', style: GoogleFonts.inter(color: theme.colorScheme.onSurface)),
+                        ),
+                        DropdownMenuItem(
+                          value: 'medium',
+                          child: Text('Średni', style: GoogleFonts.inter(color: theme.colorScheme.onSurface)),
+                        ),
+                        DropdownMenuItem(
+                          value: 'high',
+                          child: Text('Wysoki', style: GoogleFonts.inter(color: theme.colorScheme.onSurface)),
+                        ),
                       ],
                       onChanged: (val) {
                         if (val != null) {
@@ -1474,7 +1508,13 @@ class _TodoSectionState extends ConsumerState<TodoSection> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  child: Text('Anuluj', style: TextStyle(color: theme.colorScheme.secondary)),
+                  child: Text(
+                    'Anuluj',
+                    style: GoogleFonts.inter(
+                      color: theme.colorScheme.secondary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
                 TextButton(
                   onPressed: () async {
@@ -1507,7 +1547,7 @@ class _TodoSectionState extends ConsumerState<TodoSection> {
                   },
                   child: Text(
                     'Dodaj',
-                    style: TextStyle(
+                    style: GoogleFonts.inter(
                       color: theme.colorScheme.primary,
                       fontWeight: FontWeight.bold,
                     ),
