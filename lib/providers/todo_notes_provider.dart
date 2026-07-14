@@ -168,6 +168,10 @@ class TodoNotesNotifier extends StateNotifier<AsyncValue<List<TodoNote>>> {
         qualifiedAndroidName: 'com.example.pe_asystent_mobile.TodoWidgetProvider',
       );
       LogService().addLog('[HomeWidget] Aktualizacja wysłana, wynik=$res');
+      
+      final checkCount = await HomeWidget.getWidgetData<int>('todo_count');
+      final checkTodo1 = await HomeWidget.getWidgetData<String>('todo_1');
+      LogService().addLog('[HomeWidget] Odczyt weryfikacyjny: count=$checkCount, todo1=$checkTodo1');
     } catch (e, stack) {
       LogService().addLog('[HomeWidget] Błąd: $e');
       debugPrint('Error updating home widget: $e\n$stack');
