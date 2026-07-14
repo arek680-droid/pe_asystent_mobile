@@ -112,6 +112,33 @@ class TodoNotesNotifier extends StateNotifier<AsyncValue<List<TodoNote>>> {
     }
   }
 
+  Future<void> updateTodoNote({
+    required String id,
+    required String title,
+    required String priority,
+  }) async {
+    // Optimistic UI update
+    state.whenData((list) {
+      state = AsyncValue.data(
+        list.map((n) => n.id == id ? n.copyWith(title: title, priority: priority) : n).toList(),
+      );
+    });
+
+    try {
+      await Supabase.instance.client
+          .from('todo_notes')
+          .update({
+            'title': title,
+            'priority': priority,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', id);
+    } catch (e) {
+      fetchTodoNotes();
+      rethrow;
+    }
+  }
+
   @override
   set state(AsyncValue<List<TodoNote>> value) {
     super.state = value;

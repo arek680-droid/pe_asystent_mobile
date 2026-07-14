@@ -1980,6 +1980,161 @@ class _TodoSectionState extends ConsumerState<TodoSection> {
     }
   }
 
+  void _showEditTodoDialog(BuildContext context, WidgetRef ref, TodoNote note) {
+    final theme = Theme.of(context);
+    final titleController = TextEditingController(text: note.title);
+    String selectedPriority = note.priority;
+    final formKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: theme.colorScheme.surface,
+              surfaceTintColor: Colors.transparent,
+              title: Row(
+                children: [
+                  Icon(Icons.edit_note_rounded, color: theme.colorScheme.primary, size: 28),
+                  const SizedBox(width: 10),
+                  Text(
+                    'Edytuj zadanie ToDo',
+                    style: GoogleFonts.outfit(
+                      color: theme.colorScheme.onSurface,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 20,
+                    ),
+                  ),
+                ],
+              ),
+              content: SizedBox(
+                width: MediaQuery.of(context).size.width * 0.9,
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextFormField(
+                        controller: titleController,
+                        style: GoogleFonts.inter(color: theme.colorScheme.onSurface),
+                        decoration: InputDecoration(
+                          labelText: 'Treść zadania',
+                          labelStyle: GoogleFonts.inter(color: theme.colorScheme.onSurface.withValues(alpha: 0.7)),
+                          border: const OutlineInputBorder(),
+                          enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(color: theme.colorScheme.onSurface.withValues(alpha: 0.2)),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderSide: BorderSide(color: theme.colorScheme.primary),
+                          ),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Wprowadź treść zadania';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<String>(
+                        initialValue: selectedPriority,
+                        style: GoogleFonts.inter(color: theme.colorScheme.onSurface),
+                        dropdownColor: theme.colorScheme.surface,
+                        decoration: InputDecoration(
+                          labelText: 'Priorytet',
+                          labelStyle: GoogleFonts.inter(color: theme.colorScheme.onSurface.withValues(alpha: 0.7)),
+                          border: const OutlineInputBorder(),
+                          enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(color: theme.colorScheme.onSurface.withValues(alpha: 0.2)),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderSide: BorderSide(color: theme.colorScheme.primary),
+                          ),
+                        ),
+                        items: [
+                          DropdownMenuItem(
+                            value: 'low',
+                            child: Text('Niski', style: GoogleFonts.inter(color: theme.colorScheme.onSurface)),
+                          ),
+                          DropdownMenuItem(
+                            value: 'medium',
+                            child: Text('Średni', style: GoogleFonts.inter(color: theme.colorScheme.onSurface)),
+                          ),
+                          DropdownMenuItem(
+                            value: 'high',
+                            child: Text('Wysoki', style: GoogleFonts.inter(color: theme.colorScheme.onSurface)),
+                          ),
+                        ],
+                        onChanged: (val) {
+                          if (val != null) {
+                            setDialogState(() {
+                              selectedPriority = val;
+                            });
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text(
+                    'Anuluj',
+                    style: GoogleFonts.inter(
+                      color: theme.colorScheme.secondary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    if (formKey.currentState?.validate() ?? false) {
+                      Navigator.of(context).pop();
+                      try {
+                        await ref.read(todoNotesProvider.notifier).updateTodoNote(
+                          id: note.id,
+                          title: titleController.text.trim(),
+                          priority: selectedPriority,
+                        );
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Zaktualizowano zadanie ToDo'),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Błąd zapisu: $e'),
+                              backgroundColor: Colors.red.shade600,
+                            ),
+                          );
+                        }
+                      }
+                    }
+                  },
+                  child: Text(
+                    'Zapisz',
+                    style: GoogleFonts.inter(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -2177,12 +2332,19 @@ class _TodoSectionState extends ConsumerState<TodoSection> {
                                   ),
                                   const SizedBox(width: 8),
                                   Expanded(
-                                    child: Text(
-                                      note.title,
-                                      style: GoogleFonts.inter(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w500,
-                                        color: theme.colorScheme.onSurface,
+                                    child: InkWell(
+                                      onTap: () => _showEditTodoDialog(context, ref, note),
+                                      borderRadius: BorderRadius.circular(4),
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(vertical: 2.0, horizontal: 4.0),
+                                        child: Text(
+                                          note.title,
+                                          style: GoogleFonts.inter(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w500,
+                                            color: theme.colorScheme.onSurface,
+                                          ),
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -2270,12 +2432,19 @@ class _TodoSectionState extends ConsumerState<TodoSection> {
                                     ),
                                     const SizedBox(width: 8),
                                     Expanded(
-                                      child: Text(
-                                        note.title,
-                                        style: GoogleFonts.inter(
-                                          fontSize: 13,
-                                          decoration: TextDecoration.lineThrough,
-                                          color: theme.colorScheme.secondary.withValues(alpha: 0.5),
+                                      child: InkWell(
+                                        onTap: () => _showEditTodoDialog(context, ref, note),
+                                        borderRadius: BorderRadius.circular(4),
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(vertical: 2.0, horizontal: 4.0),
+                                          child: Text(
+                                            note.title,
+                                            style: GoogleFonts.inter(
+                                              fontSize: 13,
+                                              decoration: TextDecoration.lineThrough,
+                                              color: theme.colorScheme.secondary.withValues(alpha: 0.5),
+                                            ),
+                                          ),
                                         ),
                                       ),
                                     ),
