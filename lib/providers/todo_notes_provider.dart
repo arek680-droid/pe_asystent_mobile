@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:home_widget/home_widget.dart';
 import '../models/todo_note.dart';
 import 'auth_provider.dart';
+import '../services/log_service.dart';
 
 final todoNotesProvider = StateNotifierProvider<TodoNotesNotifier, AsyncValue<List<TodoNote>>>((ref) {
   return TodoNotesNotifier(ref);
@@ -153,19 +154,22 @@ class TodoNotesNotifier extends StateNotifier<AsyncValue<List<TodoNote>>> {
       final list = state.value ?? [];
       final active = list.where((n) => !n.completed).toList();
       
+      LogService().addLog('[HomeWidget] Zapisywanie widżetu: aktywne=${active.length}');
+      
       await HomeWidget.saveWidgetData<int>('todo_count', active.length);
       await HomeWidget.saveWidgetData<String?>('todo_1', active.isNotEmpty ? active[0].title : null);
       await HomeWidget.saveWidgetData<String?>('todo_2', active.length > 1 ? active[1].title : null);
       await HomeWidget.saveWidgetData<String?>('todo_3', active.length > 2 ? active[2].title : null);
       await HomeWidget.saveWidgetData<String?>('todo_4', active.length > 3 ? active[3].title : null);
       
-      await HomeWidget.updateWidget(
+      final res = await HomeWidget.updateWidget(
         name: 'TodoWidgetProvider',
         androidName: 'TodoWidgetProvider',
         qualifiedAndroidName: 'com.example.pe_asystent_mobile.TodoWidgetProvider',
       );
-      debugPrint('HomeWidget updated successfully: count=${active.length}, first=${active.isNotEmpty ? active[0].title : "none"}');
+      LogService().addLog('[HomeWidget] Aktualizacja wysłana, wynik=$res');
     } catch (e, stack) {
+      LogService().addLog('[HomeWidget] Błąd: $e');
       debugPrint('Error updating home widget: $e\n$stack');
     }
   }

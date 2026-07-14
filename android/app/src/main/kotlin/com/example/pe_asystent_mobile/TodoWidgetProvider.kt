@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.net.Uri
+import android.util.Log
 import android.view.View
 import android.widget.RemoteViews
 import es.antonborri.home_widget.HomeWidgetProvider
@@ -17,6 +18,7 @@ class TodoWidgetProvider : HomeWidgetProvider() {
         appWidgetIds: IntArray,
         widgetData: SharedPreferences
     ) {
+        Log.d("TodoWidgetProvider", "onUpdate started: widgetData keys=" + widgetData.all.keys.toString())
         for (appWidgetId in appWidgetIds) {
             val views = RemoteViews(context.packageName, R.layout.todo_widget)
 
@@ -26,6 +28,7 @@ class TodoWidgetProvider : HomeWidgetProvider() {
             val todo2 = widgetData.getString("todo_2", null)
             val todo3 = widgetData.getString("todo_3", null)
             val todo4 = widgetData.getString("todo_4", null)
+            Log.d("TodoWidgetProvider", "Read values: count=$count, todo1=$todo1, todo2=$todo2, todo3=$todo3, todo4=$todo4")
 
             // Setup row data and visibility
             if (count == 0) {
