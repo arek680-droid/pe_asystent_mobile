@@ -164,6 +164,7 @@ class TodoNotesNotifier extends StateNotifier<AsyncValue<List<TodoNote>>> {
         androidName: 'TodoWidgetProvider',
         qualifiedAndroidName: 'com.example.pe_asystent_mobile.TodoWidgetProvider',
       );
+      debugPrint('HomeWidget updated successfully: count=${active.length}, first=${active.isNotEmpty ? active[0].title : "none"}');
     } catch (e, stack) {
       debugPrint('Error updating home widget: $e\n$stack');
     }
