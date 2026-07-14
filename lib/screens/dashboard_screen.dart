@@ -1566,9 +1566,9 @@ class _TodoSectionState extends ConsumerState<TodoSection> {
     });
   }
 
-  void _showAddNormalTaskDialog(BuildContext context, WidgetRef ref) {
+  void _showAddNormalTaskDialog(BuildContext context, WidgetRef ref, {String? initialTitle, String? todoNoteId}) {
     final theme = Theme.of(context);
-    final titleController = TextEditingController();
+    final titleController = TextEditingController(text: initialTitle);
     final descController = TextEditingController();
     String? selectedProjectId;
     String? selectedAssignedTo;
@@ -1851,6 +1851,9 @@ class _TodoSectionState extends ConsumerState<TodoSection> {
                           assignedTo: selectedAssignedTo,
                           assignToSelfIfNull: false,
                         );
+                        if (todoNoteId != null) {
+                          await ref.read(todoNotesProvider.notifier).deleteTodoNote(todoNoteId);
+                        }
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
@@ -2223,6 +2226,20 @@ class _TodoSectionState extends ConsumerState<TodoSection> {
                                           color: theme.colorScheme.secondary.withValues(alpha: 0.5),
                                         ),
                                       ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    IconButton(
+                                      icon: const Icon(Icons.assignment_add, size: 18),
+                                      onPressed: () => _showAddNormalTaskDialog(
+                                        context,
+                                        ref,
+                                        initialTitle: note.title,
+                                        todoNoteId: note.id,
+                                      ),
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(),
+                                      color: theme.colorScheme.secondary.withValues(alpha: 0.7),
+                                      tooltip: 'Przekształć w główne zadanie',
                                     ),
                                     const SizedBox(width: 8),
                                     IconButton(
