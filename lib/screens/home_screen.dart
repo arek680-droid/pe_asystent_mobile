@@ -11,6 +11,7 @@ import '../providers/update_provider.dart';
 import '../providers/avatar_provider.dart';
 import '../providers/profile_provider.dart';
 import '../providers/settings_provider.dart';
+import '../services/log_service.dart';
 import '../providers/realtime_notification_provider.dart';
 import 'package:home_widget/home_widget.dart';
 import '../providers/todo_notes_provider.dart';
