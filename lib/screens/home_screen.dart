@@ -48,6 +48,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   void _handleWidgetUri(Uri? uri) {
+    LogService().addLog('[HomeWidgetClick] Otrzymano URI: $uri');
     if (uri != null && uri.scheme == 'homewidget' && uri.host == 'todo') {
       final action = uri.queryParameters['action'];
       if (action == 'add') {

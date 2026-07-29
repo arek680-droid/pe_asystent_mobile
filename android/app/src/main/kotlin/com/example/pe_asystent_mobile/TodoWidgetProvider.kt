@@ -61,7 +61,7 @@ class TodoWidgetProvider : HomeWidgetProvider() {
                 activityIntent, 
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
-            views.setOnClickPendingIntent(R.id.widget_root, pendingIntent)
+            views.setOnClickPendingIntent(R.id.widget_title, pendingIntent)
 
             // Click pending intent for "+ Dodaj" button to launch MainActivity
             val addIntent = Intent(context, MainActivity::class.java).apply {
