@@ -28,7 +28,9 @@ class TodoWidgetProvider : HomeWidgetProvider() {
             val todo2 = widgetData.getString("todo_2", null)
             val todo3 = widgetData.getString("todo_3", null)
             val todo4 = widgetData.getString("todo_4", null)
-            Log.d("TodoWidgetProvider", "Read values: count=$count, todo1=$todo1, todo2=$todo2, todo3=$todo3, todo4=$todo4")
+            val todo5 = widgetData.getString("todo_5", null)
+            val todo6 = widgetData.getString("todo_6", null)
+            Log.d("TodoWidgetProvider", "Read values: count=$count, todo1=$todo1, todo2=$todo2, todo3=$todo3, todo4=$todo4, todo5=$todo5, todo6=$todo6")
 
             // Setup row data and visibility
             if (count == 0) {
@@ -37,6 +39,9 @@ class TodoWidgetProvider : HomeWidgetProvider() {
                 views.setViewVisibility(R.id.todo_row_2, View.GONE)
                 views.setViewVisibility(R.id.todo_row_3, View.GONE)
                 views.setViewVisibility(R.id.todo_row_4, View.GONE)
+                views.setViewVisibility(R.id.todo_row_5, View.GONE)
+                views.setViewVisibility(R.id.todo_row_6, View.GONE)
+                views.setViewVisibility(R.id.todo_more_text, View.GONE)
             } else {
                 views.setViewVisibility(R.id.todo_empty_view, View.GONE)
                 
@@ -70,6 +75,30 @@ class TodoWidgetProvider : HomeWidgetProvider() {
                     views.setTextViewText(R.id.todo_text_4, todo4)
                 } else {
                     views.setViewVisibility(R.id.todo_row_4, View.GONE)
+                }
+
+                // Row 5
+                if (todo5 != null) {
+                    views.setViewVisibility(R.id.todo_row_5, View.VISIBLE)
+                    views.setTextViewText(R.id.todo_text_5, todo5)
+                } else {
+                    views.setViewVisibility(R.id.todo_row_5, View.GONE)
+                }
+
+                // Row 6
+                if (todo6 != null) {
+                    views.setViewVisibility(R.id.todo_row_6, View.VISIBLE)
+                    views.setTextViewText(R.id.todo_text_6, todo6)
+                } else {
+                    views.setViewVisibility(R.id.todo_row_6, View.GONE)
+                }
+
+                // More indicator
+                if (count > 6) {
+                    views.setViewVisibility(R.id.todo_more_text, View.VISIBLE)
+                    views.setTextViewText(R.id.todo_more_text, "+ ${count - 6} więcej w aplikacji")
+                } else {
+                    views.setViewVisibility(R.id.todo_more_text, View.GONE)
                 }
             }
 

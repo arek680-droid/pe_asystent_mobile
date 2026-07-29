@@ -161,6 +161,8 @@ class TodoNotesNotifier extends StateNotifier<AsyncValue<List<TodoNote>>> {
       await HomeWidget.saveWidgetData<String?>('todo_2', active.length > 1 ? active[1].title : null);
       await HomeWidget.saveWidgetData<String?>('todo_3', active.length > 2 ? active[2].title : null);
       await HomeWidget.saveWidgetData<String?>('todo_4', active.length > 3 ? active[3].title : null);
+      await HomeWidget.saveWidgetData<String?>('todo_5', active.length > 4 ? active[4].title : null);
+      await HomeWidget.saveWidgetData<String?>('todo_6', active.length > 5 ? active[5].title : null);
       
       final res = await HomeWidget.updateWidget(
         name: 'TodoWidgetProvider',
