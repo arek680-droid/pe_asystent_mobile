@@ -150,6 +150,7 @@
             android:maxLines="1"
             android:textColor="#E0E6ED"
             android:textSize="13sp" />
+    </LinearLayout>
     <LinearLayout
         android:id="@+id/todo_row_5"
         android:layout_width="match_parent"
