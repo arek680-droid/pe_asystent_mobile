@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/project_task.dart';
@@ -53,14 +54,144 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (uri != null && uri.scheme == 'homewidget' && uri.host == 'todo') {
       final action = uri.queryParameters['action'];
       if (action == 'add') {
-        ref.read(launchActionProvider.notifier).state = 'add_todo';
-        if (mounted && _currentIndex != 0) {
-          setState(() {
-            _currentIndex = 0;
+        if (mounted) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _showQuickAddTodoDialog(context);
           });
         }
       }
     }
+  }
+
+  void _showQuickAddTodoDialog(BuildContext context) {
+    final theme = Theme.of(context);
+    final titleController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: theme.colorScheme.surface,
+          surfaceTintColor: Colors.transparent,
+          title: Row(
+            children: [
+              Icon(Icons.playlist_add_rounded, color: theme.colorScheme.primary, size: 28),
+              const SizedBox(width: 10),
+              Text(
+                'Dodaj zadanie ToDo',
+                style: GoogleFonts.outfit(
+                  color: theme.colorScheme.onSurface,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          content: Form(
+            key: formKey,
+            child: TextFormField(
+              controller: titleController,
+              autofocus: true,
+              style: GoogleFonts.inter(color: theme.colorScheme.onSurface),
+              decoration: InputDecoration(
+                labelText: 'Treść zadania',
+                labelStyle: GoogleFonts.inter(color: theme.colorScheme.onSurface.withValues(alpha: 0.7)),
+                border: const OutlineInputBorder(),
+                enabledBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: theme.colorScheme.onSurface.withValues(alpha: 0.2)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: theme.colorScheme.primary),
+                ),
+              ),
+              validator: (val) {
+                if (val == null || val.trim().isEmpty) return 'Wpisz treść zadania';
+                return null;
+              },
+              onFieldSubmitted: (_) async {
+                if (formKey.currentState?.validate() ?? false) {
+                  Navigator.of(context).pop();
+                  try {
+                    await ref.read(todoNotesProvider.notifier).createTodoNote(
+                          title: titleController.text.trim(),
+                          priority: 'medium',
+                        );
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Dodano nowe zadanie do listy ToDo'),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Błąd dodawania zadania: $e'),
+                          backgroundColor: Colors.red.shade600,
+                        ),
+                      );
+                    }
+                  }
+                }
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(
+                'Anuluj',
+                style: GoogleFonts.inter(
+                  color: theme.colorScheme.secondary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: () async {
+                if (formKey.currentState?.validate() ?? false) {
+                  Navigator.of(context).pop();
+                  try {
+                    await ref.read(todoNotesProvider.notifier).createTodoNote(
+                          title: titleController.text.trim(),
+                          priority: 'medium',
+                        );
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Dodano nowe zadanie do listy ToDo'),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Błąd dodawania zadania: $e'),
+                          backgroundColor: Colors.red.shade600,
+                        ),
+                      );
+                    }
+                  }
+                }
+              },
+              child: Text(
+                'Dodaj',
+                style: GoogleFonts.inter(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    ).then((_) {
+      SystemNavigator.pop();
+    });
   }
 
   @override
