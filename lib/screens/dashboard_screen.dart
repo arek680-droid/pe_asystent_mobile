@@ -1450,7 +1450,7 @@ class _TodoSectionState extends ConsumerState<TodoSection> {
                       autofocus: true,
                       style: GoogleFonts.inter(color: theme.colorScheme.onSurface),
                       decoration: InputDecoration(
-                        labelText: 'Nazwa zadania',
+                        labelText: 'Treść zadania',
                         labelStyle: GoogleFonts.inter(color: theme.colorScheme.onSurface.withValues(alpha: 0.7)),
                         border: const OutlineInputBorder(),
                         enabledBorder: OutlineInputBorder(
@@ -1461,45 +1461,35 @@ class _TodoSectionState extends ConsumerState<TodoSection> {
                         ),
                       ),
                       validator: (val) {
-                        if (val == null || val.trim().isEmpty) return 'Wpisz nazwę';
+                        if (val == null || val.trim().isEmpty) return 'Wpisz treść zadania';
                         return null;
                       },
-                    ),
-                    const SizedBox(height: 16),
-                    DropdownButtonFormField<String>(
-                      initialValue: selectedPriority,
-                      style: GoogleFonts.inter(color: theme.colorScheme.onSurface),
-                      dropdownColor: theme.colorScheme.surface,
-                      decoration: InputDecoration(
-                        labelText: 'Priorytet',
-                        labelStyle: GoogleFonts.inter(color: theme.colorScheme.onSurface.withValues(alpha: 0.7)),
-                        border: const OutlineInputBorder(),
-                        enabledBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: theme.colorScheme.onSurface.withValues(alpha: 0.2)),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: theme.colorScheme.primary),
-                        ),
-                      ),
-                      items: [
-                        DropdownMenuItem(
-                          value: 'low',
-                          child: Text('Niski', style: GoogleFonts.inter(color: theme.colorScheme.onSurface)),
-                        ),
-                        DropdownMenuItem(
-                          value: 'medium',
-                          child: Text('Średni', style: GoogleFonts.inter(color: theme.colorScheme.onSurface)),
-                        ),
-                        DropdownMenuItem(
-                          value: 'high',
-                          child: Text('Wysoki', style: GoogleFonts.inter(color: theme.colorScheme.onSurface)),
-                        ),
-                      ],
-                      onChanged: (val) {
-                        if (val != null) {
-                          setDialogState(() {
-                            selectedPriority = val;
-                          });
+                      onFieldSubmitted: (_) async {
+                        if (formKey.currentState?.validate() ?? false) {
+                          Navigator.of(context).pop();
+                          try {
+                            await ref.read(todoNotesProvider.notifier).createTodoNote(
+                              title: titleController.text.trim(),
+                              priority: selectedPriority,
+                            );
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Dodano nowe zadanie do listy ToDo'),
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Błąd dodawania zadania: $e'),
+                                  backgroundColor: Colors.red.shade600,
+                                ),
+                              );
+                            }
+                          }
                         }
                       },
                     ),
