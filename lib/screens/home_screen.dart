@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/project_task.dart';
@@ -191,7 +190,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       },
     ).then((_) {
       _isAddDialogShowing = false;
-      SystemNavigator.pop();
     });
   }
 

@@ -8,4 +8,10 @@ class MainActivity : FlutterActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
     }
+
+    override fun onPause() {
+        super.onPause()
+        intent?.data = null
+        intent?.removeExtra("es.antonborri.home_widget.uri")
+    }
 }
