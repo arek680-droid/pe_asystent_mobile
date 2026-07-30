@@ -53,15 +53,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   void _handleWidgetUri(Uri? uri) {
     LogService().addLog('[HomeWidgetClick] Otrzymano URI: $uri');
-    if (uri != null && uri.scheme == 'homewidget' && uri.host == 'todo') {
-      final action = uri.queryParameters['action'];
-      if (action == 'add') {
-        if (mounted && !_isAddDialogShowing) {
-          _isAddDialogShowing = true;
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            _showQuickAddTodoDialog(context);
-          });
-        }
+    if (uri != null && uri.scheme == 'homewidget') {
+      if (mounted && !_isAddDialogShowing) {
+        _isAddDialogShowing = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _showQuickAddTodoDialog(context);
+        });
       }
     }
   }

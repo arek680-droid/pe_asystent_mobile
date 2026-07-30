@@ -2,7 +2,6 @@ package com.example.pe_asystent_mobile
 
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.util.Log
 import android.widget.RemoteViews
 import android.widget.RemoteViewsService
@@ -50,12 +49,6 @@ class TodoRemoteViewsFactory(
         val views = RemoteViews(context.packageName, R.layout.todo_widget_item)
         if (position in 0 until todoList.size) {
             views.setTextViewText(R.id.todo_item_text, todoList[position])
-
-            // Fill-in intent to open MainActivity when clicking an item
-            val fillInIntent = Intent().apply {
-                data = Uri.parse("homewidget://todo?action=open")
-            }
-            views.setOnClickFillInIntent(R.id.todo_item_container, fillInIntent)
         }
         return views
     }

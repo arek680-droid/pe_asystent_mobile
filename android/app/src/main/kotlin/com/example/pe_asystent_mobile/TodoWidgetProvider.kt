@@ -39,31 +39,9 @@ class TodoWidgetProvider : HomeWidgetProvider() {
                 }
                 views.setRemoteAdapter(R.id.todo_list_view, serviceIntent)
                 views.setEmptyView(R.id.todo_list_view, R.id.todo_empty_view)
-
-                // Set pending intent template for item click
-                val itemClickIntent = Intent(context, MainActivity::class.java)
-                val itemPendingIntent = PendingIntent.getActivity(
-                    context,
-                    0,
-                    itemClickIntent,
-                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
-                )
-                views.setPendingIntentTemplate(R.id.todo_list_view, itemPendingIntent)
             }
 
-            // Click pending intent for the entire widget header to launch MainActivity
-            val activityIntent = Intent(context, MainActivity::class.java).apply {
-                data = Uri.parse("homewidget://todo?action=open")
-            }
-            val pendingIntent = PendingIntent.getActivity(
-                context, 
-                0, 
-                activityIntent, 
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-            views.setOnClickPendingIntent(R.id.widget_title, pendingIntent)
-
-            // Click pending intent for "+ Dodaj" button to launch MainActivity
+            // Click pending intent ONLY for "+ Dodaj" button to launch quick add dialog
             val addIntent = Intent(context, MainActivity::class.java).apply {
                 data = Uri.parse("homewidget://todo?action=add")
             }
