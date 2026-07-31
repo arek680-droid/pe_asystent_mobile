@@ -447,7 +447,7 @@ class TasksDashboard extends ConsumerWidget {
         : 0.0;
 
     return DefaultTabController(
-      length: 3,
+      length: isAdmin ? 4 : 3,
       child: Scaffold(
         appBar: AppBar(
           toolbarHeight: 0, // Hide standard toolbar, we build our own gamified header
@@ -600,10 +600,11 @@ class TasksDashboard extends ConsumerWidget {
                     labelColor: theme.colorScheme.primary,
                     unselectedLabelColor: theme.colorScheme.secondary,
                     labelStyle: const TextStyle(fontWeight: FontWeight.bold),
-                    tabs: const [
-                      Tab(text: 'Moje zadania'),
-                      Tab(text: 'Nieprzypisane'),
-                      Tab(text: 'Zakończone'),
+                    tabs: [
+                      const Tab(text: 'Moje zadania'),
+                      const Tab(text: 'Nieprzypisane'),
+                      const Tab(text: 'Zakończone'),
+                      if (isAdmin) const Tab(text: 'Wszystkie'),
                     ],
                   ),
                 ],
@@ -619,6 +620,7 @@ class TasksDashboard extends ConsumerWidget {
             final myTasks = tasks.where((t) => t.status != 'completed' && t.assignedTo == currentUserId).toList();
             final unassignedTasks = tasks.where((t) => t.status != 'completed' && (t.assignedTo == null || t.assignedTo!.isEmpty)).toList();
             final completedTasks = tasks.where((t) => t.status == 'completed').toList();
+            final otherTasks = tasks.where((t) => t.status != 'completed' && t.assignedTo != currentUserId && t.assignedTo != null && t.assignedTo!.isNotEmpty).toList();
 
             Future<void> handleStatusChanged(ProjectTask task, String newStatus) async {
               final oldStatus = task.status;
@@ -794,6 +796,12 @@ class TasksDashboard extends ConsumerWidget {
                         onStatusChanged: handleStatusChanged,
                         isEmptyMessage: 'Jeszcze nic nie ukończyłeś. Do dzieła!',
                       ),
+                      if (isAdmin)
+                        TaskList(
+                          tasks: otherTasks,
+                          onStatusChanged: handleStatusChanged,
+                          isEmptyMessage: 'Brak zadań innych użytkowników.',
+                        ),
                     ],
                   ),
                 ),
