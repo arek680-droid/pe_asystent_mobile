@@ -1,5 +1,6 @@
 package com.example.pe_asystent_mobile
 
+import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.Intent
@@ -8,7 +9,6 @@ import android.net.Uri
 import android.util.Log
 import android.view.View
 import android.widget.RemoteViews
-import es.antonborri.home_widget.HomeWidgetLaunchIntent
 import es.antonborri.home_widget.HomeWidgetProvider
 
 class TodoWidgetProvider : HomeWidgetProvider() {
@@ -41,11 +41,13 @@ class TodoWidgetProvider : HomeWidgetProvider() {
                 views.setEmptyView(R.id.todo_list_view, R.id.todo_empty_view)
             }
 
-            // Official HomeWidgetLaunchIntent ONLY for "+" button to launch quick add dialog
-            val pendingAddIntent = HomeWidgetLaunchIntent.getActivity(
+            // "+" button: set a flag in SharedPreferences, then launch app normally
+            val addIntent = Intent(context, AddTodoActivity::class.java)
+            val pendingAddIntent = PendingIntent.getActivity(
                 context,
-                MainActivity::class.java,
-                Uri.parse("homewidget://todo?action=add")
+                1,
+                addIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
             views.setOnClickPendingIntent(R.id.widget_add_button, pendingAddIntent)
 

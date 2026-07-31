@@ -34,41 +34,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _setupWidgetClicks();
+    _checkPendingAddTodo();
   }
 
-  void _setupWidgetClicks() {
-    // Check initially launched widget URI
-    HomeWidget.initiallyLaunchedFromHomeWidget().then((uri) {
-      _handleWidgetUri(uri);
-    });
-    // Listen to background click streams
-    HomeWidget.widgetClicked.listen((uri) {
-      _handleWidgetUri(uri);
-    });
-  }
-
-  bool _isAddDialogShowing = false;
-  String? _handledWidgetUri;
-
-  void _handleWidgetUri(Uri? uri) {
-    LogService().addLog('[HomeWidgetClick] Otrzymano URI: $uri');
-    if (uri != null && uri.scheme == 'homewidget') {
-      final uriString = uri.toString();
-      if (_handledWidgetUri == uriString) return;
-      _handledWidgetUri = uriString;
-
-      Future.delayed(const Duration(seconds: 2), () {
-        _handledWidgetUri = null;
-      });
-
-      if (mounted && !_isAddDialogShowing) {
-        _isAddDialogShowing = true;
-        if (_currentIndex != 0) {
-          setState(() {
-            _currentIndex = 0;
-          });
-        }
+  /// Check if the widget "+" button was pressed (simple SharedPreferences flag).
+  /// No URI schemes, no intent filters, no streams.
+  void _checkPendingAddTodo() async {
+    final pendingFlag = await HomeWidget.getWidgetData<String>('pending_add_todo');
+    LogService().addLog('[Widget] pending_add_todo flag = $pendingFlag');
+    if (pendingFlag == 'true') {
+      // Clear the flag immediately so it doesn't fire again
+      await HomeWidget.saveWidgetData('pending_add_todo', null);
+      if (mounted) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _showQuickAddTodoDialog(context);
         });
@@ -78,12 +55,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   void _showQuickAddTodoDialog(BuildContext context) {
     final theme = Theme.of(context);
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
     final titleController = TextEditingController();
     final formKey = GlobalKey<FormState>();
 
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (ctx) {
         return AlertDialog(
           backgroundColor: theme.colorScheme.surface,
           surfaceTintColor: Colors.transparent,
@@ -123,14 +101,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               },
               onFieldSubmitted: (_) async {
                 if (formKey.currentState?.validate() ?? false) {
-                  Navigator.of(context).pop();
+                  Navigator.of(ctx).pop();
                   try {
                     await ref.read(todoNotesProvider.notifier).createTodoNote(
                           title: titleController.text.trim(),
                           priority: 'medium',
                         );
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
+                    if (mounted) {
+                    scaffoldMessenger.showSnackBar(
                         const SnackBar(
                           content: Text('Dodano nowe zadanie do listy ToDo'),
                           behavior: SnackBarBehavior.floating,
@@ -138,8 +116,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       );
                     }
                   } catch (e) {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
+                    if (mounted) {
+                    scaffoldMessenger.showSnackBar(
                         SnackBar(
                           content: Text('Błąd dodawania zadania: $e'),
                           backgroundColor: Colors.red.shade600,
@@ -153,7 +131,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () => Navigator.of(ctx).pop(),
               child: Text(
                 'Anuluj',
                 style: GoogleFonts.inter(
@@ -165,14 +143,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             TextButton(
               onPressed: () async {
                 if (formKey.currentState?.validate() ?? false) {
-                  Navigator.of(context).pop();
+                  Navigator.of(ctx).pop();
                   try {
                     await ref.read(todoNotesProvider.notifier).createTodoNote(
                           title: titleController.text.trim(),
                           priority: 'medium',
                         );
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
+                    if (mounted) {
+                    scaffoldMessenger.showSnackBar(
                         const SnackBar(
                           content: Text('Dodano nowe zadanie do listy ToDo'),
                           behavior: SnackBarBehavior.floating,
@@ -180,8 +158,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       );
                     }
                   } catch (e) {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
+                    if (mounted) {
+                    scaffoldMessenger.showSnackBar(
                         SnackBar(
                           content: Text('Błąd dodawania zadania: $e'),
                           backgroundColor: Colors.red.shade600,
@@ -202,9 +180,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ],
         );
       },
-    ).then((_) {
-      _isAddDialogShowing = false;
-    });
+    );
   }
 
   @override
