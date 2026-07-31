@@ -1549,11 +1549,7 @@ class _TodoSectionState extends ConsumerState<TodoSection> {
           },
         );
       },
-    ).then((_) {
-      if (isWidgetLaunch) {
-        SystemNavigator.pop();
-      }
-    });
+    );
   }
 
   void _showAddNormalTaskDialog(BuildContext context, WidgetRef ref, {String? initialTitle, String? todoNoteId}) {
@@ -2131,13 +2127,7 @@ class _TodoSectionState extends ConsumerState<TodoSection> {
     final user = ref.watch(authProvider);
     if (user == null) return const SizedBox.shrink();
 
-    final launchAction = ref.watch(launchActionProvider);
-    if (launchAction == 'add_todo') {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        ref.read(launchActionProvider.notifier).state = null;
-        _showAddTaskDialog(context, ref, isWidgetLaunch: true);
-      });
-    }
+
 
     final todoNotesAsync = ref.watch(todoNotesProvider);
 
