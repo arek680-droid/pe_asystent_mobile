@@ -1411,7 +1411,7 @@ class _TodoSectionState extends ConsumerState<TodoSection> {
   bool _isTodoExpanded = true;
   bool _isCompletedExpanded = false;
 
-  void _showAddTaskDialog(BuildContext context, WidgetRef ref, {bool isWidgetLaunch = false}) {
+  void _showAddTaskDialog(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final titleController = TextEditingController();
     String selectedPriority = 'medium';

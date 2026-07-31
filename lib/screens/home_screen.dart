@@ -49,12 +49,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   bool _isAddDialogShowing = false;
+  String? _handledWidgetUri;
 
   void _handleWidgetUri(Uri? uri) {
     LogService().addLog('[HomeWidgetClick] Otrzymano URI: $uri');
     if (uri != null && uri.scheme == 'homewidget') {
+      final uriString = uri.toString();
+      if (_handledWidgetUri == uriString) return;
+      _handledWidgetUri = uriString;
+
+      Future.delayed(const Duration(seconds: 2), () {
+        _handledWidgetUri = null;
+      });
+
       if (mounted && !_isAddDialogShowing) {
         _isAddDialogShowing = true;
+        if (_currentIndex != 0) {
+          setState(() {
+            _currentIndex = 0;
+          });
+        }
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _showQuickAddTodoDialog(context);
         });
