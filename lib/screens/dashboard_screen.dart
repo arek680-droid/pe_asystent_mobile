@@ -2196,35 +2196,7 @@ class _TodoSectionState extends ConsumerState<TodoSection> {
                           Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              ElevatedButton(
-                                onPressed: () => _showAddNormalTaskDialog(context, ref),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: theme.colorScheme.secondary.withValues(alpha: 0.1),
-                                  foregroundColor: theme.colorScheme.secondary,
-                                  elevation: 0,
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                  minimumSize: Size.zero,
-                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(Icons.assignment_add, size: 14),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      '+ Główne',
-                                      style: GoogleFonts.inter(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 8),
+
                               ElevatedButton(
                                 onPressed: () => _showAddTaskDialog(context, ref),
                                 style: ElevatedButton.styleFrom(
@@ -2326,6 +2298,20 @@ class _TodoSectionState extends ConsumerState<TodoSection> {
                                         ),
                                       ),
                                     ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  IconButton(
+                                    icon: const Icon(Icons.assignment_add, size: 18),
+                                    onPressed: () => _showAddNormalTaskDialog(
+                                      context,
+                                      ref,
+                                      initialTitle: note.title,
+                                      todoNoteId: note.id,
+                                    ),
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                    color: theme.colorScheme.secondary.withValues(alpha: 0.7),
+                                    tooltip: 'Przekształć w główne zadanie',
                                   ),
                                   const SizedBox(width: 8),
                                   IconButton(
