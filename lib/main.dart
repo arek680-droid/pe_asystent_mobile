@@ -3,10 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/supabase_client.dart';
 import 'core/theme.dart';
-import 'providers/auth_provider.dart';
 import 'providers/theme_provider.dart';
-import 'screens/home_screen.dart';
-import 'screens/login_screen.dart';
+import 'screens/splash_animation_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,7 +28,6 @@ class MyApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeProvider);
-    final user = ref.watch(authProvider);
 
     return MaterialApp(
       title: 'PE Assistant Mobile',
@@ -38,8 +35,8 @@ class MyApp extends ConsumerWidget {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeMode,
-      // If the user is authenticated, show the HomeScreen. Otherwise, show the LoginScreen.
-      home: user != null ? const HomeScreen() : const LoginScreen(),
+      // Show the splash screen first. It will navigate to HomeScreen or LoginScreen.
+      home: const SplashAnimationScreen(),
     );
   }
 }

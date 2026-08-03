@@ -72,6 +72,7 @@ flutter:
     - assets/avatars/png/
     - assets/avatars/3d/
     - assets/logo.png
+    - assets/animations/
 
   # To add assets to your application, add an assets section, like this:
   # assets:
