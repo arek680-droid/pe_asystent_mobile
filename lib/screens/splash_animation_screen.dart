@@ -22,7 +22,7 @@ class _SplashAnimationScreenState extends ConsumerState<SplashAnimationScreen> {
   }
 
   void _startTimer() {
-    _timer = Timer(const Duration(seconds: 3), _navigateToNextScreen);
+    _timer = Timer(const Duration(seconds: 5), _navigateToNextScreen);
   }
 
   void _navigateToNextScreen() {
