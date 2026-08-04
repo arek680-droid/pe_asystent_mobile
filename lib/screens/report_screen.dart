@@ -364,6 +364,172 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
     }
   }
 
+  Future<void> _showManualEntryDialog(BuildContext context) async {
+    final currentUser = Supabase.instance.client.auth.currentUser;
+    if (currentUser == null) return;
+
+    final descriptionController = TextEditingController();
+    final hoursController = TextEditingController();
+    final minutesController = TextEditingController();
+    String selectedStatus = 'in_progress'; // Domyślnie W trakcie
+    bool isSaving = false;
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text('Dodaj wpis do raportu', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: descriptionController,
+                      decoration: const InputDecoration(
+                        labelText: 'Opis czynności',
+                        border: OutlineInputBorder(),
+                      ),
+                      maxLines: 2,
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      initialValue: selectedStatus,
+                      decoration: const InputDecoration(
+                        labelText: 'Status',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: 'in_progress', child: Text('W trakcie')),
+                        DropdownMenuItem(value: 'completed', child: Text('Zakończone')),
+                        DropdownMenuItem(value: 'on_hold', child: Text('Wstrzymane')),
+                        DropdownMenuItem(value: 'to_accept', child: Text('Do akceptacji')),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() {
+                            selectedStatus = value;
+                          });
+                        }
+                      },
+                    ),
+                    if (selectedStatus == 'completed') ...[
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: hoursController,
+                              keyboardType: TextInputType.number,
+                              decoration: const InputDecoration(
+                                labelText: 'Godziny',
+                                border: OutlineInputBorder(),
+                                suffixText: 'h',
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: TextField(
+                              controller: minutesController,
+                              keyboardType: TextInputType.number,
+                              decoration: const InputDecoration(
+                                labelText: 'Minuty',
+                                border: OutlineInputBorder(),
+                                suffixText: 'm',
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Anuluj'),
+                ),
+                ElevatedButton(
+                  onPressed: isSaving ? null : () async {
+                    if (descriptionController.text.trim().isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Wprowadź opis czynności')),
+                      );
+                      return;
+                    }
+
+                    setState(() { isSaving = true; });
+
+                    try {
+                      String statusPl = '';
+                      switch (selectedStatus) {
+                        case 'completed':
+                          statusPl = 'Zakończone';
+                          break;
+                        case 'in_progress':
+                          statusPl = 'W trakcie';
+                          break;
+                        case 'on_hold':
+                          statusPl = 'Wstrzymane';
+                          break;
+                        case 'to_accept':
+                          statusPl = 'Do akceptacji';
+                          break;
+                      }
+
+                      if (selectedStatus == 'completed') {
+                        final int h = int.tryParse(hoursController.text.trim()) ?? 0;
+                        final int m = int.tryParse(minutesController.text.trim()) ?? 0;
+                        if (h > 0 || m > 0) {
+                          statusPl += ' Czas pracy: ${h}h ${m}m';
+                        }
+                      }
+
+                      final taskResponse = await Supabase.instance.client.from('project_tasks').insert({
+                        'title': '[Wpis ręczny] ${descriptionController.text.trim()}',
+                        'description': '',
+                        'status': selectedStatus,
+                        'priority': 'medium',
+                        'assigned_to': currentUser.id,
+                        if (selectedStatus == 'completed') 'completed_at': DateTime.now().toIso8601String(),
+                      }).select().single();
+
+                      final taskId = taskResponse['id'];
+
+                      await Supabase.instance.client.from('project_task_comments').insert({
+                        'task_id': taskId,
+                        'user_id': currentUser.id,
+                        'comment': '[STATUS] Zmiana statusu na: $statusPl',
+                      });
+
+                      if (context.mounted) {
+                        Navigator.of(context).pop();
+                        _loadReport(); 
+                      }
+                    } catch (e) {
+                      setState(() { isSaving = false; });
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Błąd podczas zapisywania: $e')),
+                        );
+                      }
+                    }
+                  },
+                  child: isSaving 
+                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Text('Zapisz'),
+                ),
+              ],
+            );
+          }
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -377,6 +543,13 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
     final inactiveReports = _reports.where((r) => r.activities.isEmpty).toList();
 
     return Scaffold(
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _showManualEntryDialog(context),
+        icon: const Icon(Icons.add_task_rounded),
+        label: const Text('Dodaj czynność'),
+        backgroundColor: theme.colorScheme.primary,
+        foregroundColor: theme.colorScheme.onPrimary,
+      ),
       appBar: AppBar(
         title: Text(
           'Dzienny Raport Pracy',
