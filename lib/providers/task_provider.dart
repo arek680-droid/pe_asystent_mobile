@@ -36,24 +36,18 @@ class TasksNotifier extends StateNotifier<AsyncValue<List<ProjectTask>>> {
         return;
       }
 
-      // Fetch tasks from Supabase project_tasks table
+      final fiveDaysAgo = DateTime.now().subtract(const Duration(days: 5)).toIso8601String();
+
+      // Fetch tasks: only active tasks OR tasks completed within the last 5 days
       final response = await Supabase.instance.client
           .from('project_tasks')
-          .select()
+          .select('id, project_id, title, status, priority, assigned_to, tags, start_date, due_date, completed_at, created_at, estimated_hours, actual_hours, milestone_id')
+          .or('status.neq.completed,completed_at.gte.$fiveDaysAgo')
           .order('created_at', ascending: false);
-
-      // Fetch attachments to check which tasks have images
-      final attachmentsResponse = await Supabase.instance.client
-          .from('project_task_attachments')
-          .select('task_id');
-      final List<dynamic> attachmentsData = attachmentsResponse as List<dynamic>;
-      final tasksWithAttachments = attachmentsData.map((row) => row['task_id'].toString()).toSet();
 
       final List<dynamic> data = response as List<dynamic>;
       final tasks = data.map((json) {
-        final task = ProjectTask.fromJson(json as Map<String, dynamic>);
-        final hasImage = tasksWithAttachments.contains(task.id);
-        return task.copyWith(hasImage: hasImage);
+        return ProjectTask.fromJson(json as Map<String, dynamic>);
       }).toList();
       
       state = AsyncValue.data(tasks);

@@ -1074,13 +1074,39 @@ class TaskList extends StatelessWidget {
           child: Card(
             child: InkWell(
               borderRadius: BorderRadius.circular(16),
-              onTap: () {
-                showModalBottomSheet(
+              onTap: () async {
+                showDialog(
                   context: context,
-                  isScrollControlled: true,
-                  backgroundColor: Colors.transparent,
-                  builder: (context) => TaskDetailSheet(task: task),
+                  barrierDismissible: false,
+                  builder: (context) => const Center(child: CircularProgressIndicator()),
                 );
+                try {
+                  final response = await Supabase.instance.client
+                      .from('project_tasks')
+                      .select()
+                      .eq('id', task.id)
+                      .single();
+                  
+                  if (context.mounted) Navigator.of(context).pop();
+                  
+                  final fullTask = ProjectTask.fromJson(response);
+                  
+                  if (context.mounted) {
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (context) => TaskDetailSheet(task: fullTask),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    Navigator.of(context).pop();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Nie udało się pobrać szczegółów')),
+                    );
+                  }
+                }
               },
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
